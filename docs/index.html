@@ -201,6 +201,7 @@
     var VERSION = 'v1.0.0';
     var $ = function (id) { return document.getElementById(id); };
     var still = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (still.matches) document.querySelector('.window img').src = 'previews/movie8_f.png';
 
     var SCREENS = {
       ili9341: { kind: 'colour', note: 'Each clip is scaled up to fill the width, as cyan dots with a gap where they are big enough.',
@@ -241,9 +242,11 @@
       return f + ', ' + c.frames + ' frames, ' + (c.frames * 0.06).toFixed(1) + ' s';
     }
 
-    /* Posters at rest; the clip plays while the pointer or focus is on it. */
+    /* Posters at rest; the clip plays while the pointer or focus is on it.
+       That is asked for, so it plays even with reduced motion; only what
+       would move by itself (the faceplate) waits. */
     function play(img, name, on) {
-      if (!animated(name) || still.matches) return;
+      if (!animated(name)) return;
       img.src = 'previews/' + name + (on ? '.gif' : '.png');
     }
 
@@ -376,7 +379,7 @@
       lastFocus = document.activeElement;
       $('preview-title').textContent = c.title;
       var native = $('preview-native'), scale = Math.max(1, Math.floor(640 / c.width));
-      native.src = 'previews/' + name + (animated(name) && !still.matches ? '.gif' : '.png');
+      native.src = 'previews/' + name + (animated(name) ? '.gif' : '.png');
       native.width = c.width * scale;
       native.height = c.height * scale;
       native.alt = c.title + ', as recorded';
