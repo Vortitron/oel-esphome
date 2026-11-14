@@ -1,0 +1,56 @@
+# Pioneer's OEL clips on an ESP32-C3 Super Mini with a 1.3" SH1106 128x64 I2C
+# OLED. The 256-dot movies show dot for dot and pan; the rest are scaled.
+#
+#   esphome run examples/oel-c3-oled.yaml
+
+esphome:
+  name: oel-oled
+  friendly_name: OEL OLED
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+external_components:
+  - source: github://Vortitron/oel-esphome@v1.0.0
+    components: [oel]
+  # Or from a checkout of this repository:
+  # - source:
+  #     type: local
+  #     path: ../components
+
+logger:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+ota:
+  - platform: esphome
+
+i2c:
+  sda: GPIO5
+  scl: GPIO6
+  frequency: 400kHz
+
+display:
+  - platform: ssd1306_i2c
+    id: screen
+    model: SH1106_128X64
+    address: 0x3C
+    update_interval: never     # oel pushes the frames
+    auto_clear_enabled: false
+
+oel:
+  display_id: screen
+  clips:
+    - movie8_f                 # dolphins underwater
+    - alt_diverdolphins        # a diver with dolphins
+    - meter_level01            # a level meter, bouncing to made-up music
+  clip: cycle
+
+select:
+  - platform: oel
+    name: Dashboard clip

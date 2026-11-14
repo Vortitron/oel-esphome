@@ -1,0 +1,75 @@
+# Pioneer's OEL clips on an ESP32-S3 with a 2.4" ILI9341 320x240 SPI panel,
+# in colour. Pins are the S3 Super Mini's; move them to suit your wiring.
+#
+#   esphome run examples/oel-s3.yaml
+
+esphome:
+  name: oel-colour
+  friendly_name: OEL Colour
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+external_components:
+  - source: github://Vortitron/oel-esphome@v1.0.0
+    components: [oel]
+  # Or from a checkout of this repository:
+  # - source:
+  #     type: local
+  #     path: ../components
+
+logger:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+ota:
+  - platform: esphome
+
+spi:
+  clk_pin: GPIO12
+  mosi_pin: GPIO11
+
+display:
+  - platform: ili9xxx
+    id: screen
+    model: ILI9341
+    cs_pin: GPIO10
+    dc_pin: GPIO9
+    reset_pin: GPIO8
+    data_rate: 40MHz
+    invert_colors: false
+    dimensions:
+      width: 320
+      height: 240
+    transform:
+      swap_xy: true
+      mirror_x: true
+    update_interval: never     # oel pushes the frames
+    auto_clear_enabled: false
+
+output:
+  - platform: ledc
+    pin: GPIO7
+    id: backlight_pwm
+light:
+  - platform: monochromatic
+    output: backlight_pwm
+    name: Backlight
+    restore_mode: ALWAYS_ON
+
+oel:
+  display_id: screen
+  clips:
+    - movie8_f                 # dolphins underwater
+    - color_02_greatbarrierreef   # a colour clip is 150-350 KB; four fill a 4 MB board
+    - meter_level01
+  clip: cycle
+
+select:
+  - platform: oel
+    name: Dashboard clip

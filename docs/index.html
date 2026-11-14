@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OEL for ESPHome</title>
+  <meta name="description" content="Put the animations from Pioneer's OEL car stereos on an ESPHome display: pick the clips, see what fits, copy the config.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+  <style>
+    /* A head unit: a brushed faceplate, a cyan organic-EL window, and the
+       clips laid out below like a bank of presets. One dark look, on purpose. */
+    :root {
+      --bg: #0b0d10;
+      --plate: #1a1e23;
+      --plate-hi: #2b3138;
+      --edge: #3b434c;
+      --ink: #d3dde0;
+      --ink-2: #8d9aa0;
+      --oel: #00ffff;
+      --oel-dim: #079eaf;
+      --amber: #ffb547;
+      --red: #ff5a4f;
+      --display: "Saira Semi Condensed", "Arial Narrow", sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--mono); }
+    a { color: var(--oel); }
+    a:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--oel); outline-offset: 2px;
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+    /* ---- the faceplate ---- */
+    .unit {
+      margin-top: 24px; border-radius: 14px; padding: 18px;
+      background: linear-gradient(180deg, var(--plate-hi), var(--plate) 55%, #14181c);
+      border: 1px solid var(--edge); box-shadow: 0 1px 0 #ffffff14 inset, 0 18px 40px #00000080;
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center;
+    }
+    .window {
+      background: #000; border-radius: 6px; padding: 10px; border: 1px solid #000;
+      box-shadow: 0 0 0 3px #0d1013, 0 0 24px #00ffff1f inset; min-width: 0;
+    }
+    .window img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+    .brand { display: grid; gap: 6px; justify-items: end; text-align: right; }
+    .brand h1 { margin: 0; font: 700 clamp(1.6rem, 4vw, 2.4rem)/1 var(--display); letter-spacing: .06em; text-transform: uppercase; text-wrap: balance; }
+    .brand h1 b { color: var(--oel); font-weight: 700; }
+    .brand p { margin: 0; color: var(--ink-2); font-size: 13px; max-width: 34ch; }
+    .presets { display: flex; gap: 8px; }
+    .presets i { width: 30px; height: 8px; border-radius: 4px; background: #2c3a1e; box-shadow: 0 0 6px #7dff4a55; }
+    .presets i:nth-child(odd) { background: #5cff3a; }
+    @media (max-width: 720px) {
+      .unit { grid-template-columns: 1fr; }
+      .brand { justify-items: start; text-align: left; }
+    }
+    .lede { color: var(--ink-2); max-width: 72ch; margin: 18px 0 0; }
+
+    /* ---- setup and output ---- */
+    .rig { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; margin-top: 22px; }
+    @media (max-width: 900px) { .rig { grid-template-columns: 1fr; } }
+    .panel { background: var(--plate); border: 1px solid var(--edge); border-radius: 10px; padding: 16px; min-width: 0; }
+    .panel h2 { margin: 0 0 12px; font: 700 13px var(--display); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-2); }
+    .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    label.field { display: grid; gap: 4px; font-size: 12px; color: var(--ink-2); letter-spacing: .04em; }
+    select, textarea { font: inherit; color: var(--ink); background: #0f1215; border: 1px solid var(--edge); border-radius: 6px; padding: 8px; }
+    .note { color: var(--ink-2); font-size: 13px; margin: 12px 0 0; }
+
+    .meter { display: grid; grid-template-columns: repeat(30, 1fr); gap: 3px; height: 22px; margin: 4px 0 8px; }
+    .meter i { border-radius: 2px; background: #10262a; }
+    .meter i.g { background: var(--oel); box-shadow: 0 0 6px #00ffff66; }
+    .meter i.a { background: var(--amber); }
+    .meter i.r { background: var(--red); }
+    .readout { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; font-variant-numeric: tabular-nums; }
+    .readout b { font-weight: 600; }
+    .readout .warn { color: var(--red); }
+    textarea { width: 100%; min-height: 300px; font-size: 12.5px; line-height: 1.5; resize: vertical; white-space: pre; }
+    .acts { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+    .btn { font: 600 13px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink); background: linear-gradient(var(--plate-hi), var(--plate)); border: 1px solid var(--edge); border-radius: 18px; padding: 8px 16px; cursor: pointer; text-decoration: none; }
+    .btn:hover { border-color: var(--oel-dim); }
+    .btn.go { color: #001b1d; background: var(--oel); border-color: var(--oel); }
+    #status { color: var(--ink-2); font-size: 13px; }
+
+    /* ---- the clips ---- */
+    .bank-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 30px; }
+    .bank-head h2 { margin: 0; font: 700 1.3rem var(--display); letter-spacing: .08em; text-transform: uppercase; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { font: 500 13px var(--display); letter-spacing: .06em; color: var(--ink-2); background: none; border: 1px solid var(--edge); border-radius: 14px; padding: 4px 12px; cursor: pointer; }
+    .chip[aria-pressed="true"] { color: #001b1d; background: var(--oel); border-color: var(--oel); }
+    .bank { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin: 14px 0 40px; }
+    .tile { position: relative; display: grid; gap: 8px; background: var(--plate); border: 1px solid var(--edge); border-radius: 10px; padding: 10px; min-width: 0; }
+    .tile.on { border-color: var(--oel); box-shadow: 0 0 0 1px var(--oel), 0 0 18px #00ffff2a; }
+    .screen { background: #000; border-radius: 4px; aspect-ratio: 3 / 1; display: grid; place-items: center; overflow: hidden; cursor: zoom-in; border: 0; padding: 4px; width: 100%; }
+    .screen img { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+    .tile .meta { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+    .tile .name { font: 700 15px var(--display); letter-spacing: .04em; overflow-wrap: anywhere; }
+    .tile .size { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .tile .facts { font-size: 11.5px; color: var(--ink-2); }
+    .tile label.pick { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+    .tile input { accent-color: var(--oel); width: 16px; height: 16px; }
+
+    /* ---- the preview ---- */
+    .modal { position: fixed; inset: 0; background: #000000c0; display: grid; place-items: center; padding: 16px; z-index: 10; }
+    .modal[hidden] { display: none; }
+    .sheet { width: min(760px, 100%); background: var(--plate); border: 1px solid var(--edge); border-radius: 12px; padding: 18px; display: grid; gap: 12px; max-height: 100%; overflow: auto; }
+    .sheet h3 { margin: 0; font: 700 1.3rem var(--display); letter-spacing: .06em; }
+    .sheet figure { margin: 0; display: grid; gap: 6px; }
+    .sheet figure div { background: #000; border-radius: 6px; padding: 10px; display: grid; place-items: center; }
+    .sheet figure img { image-rendering: pixelated; max-width: 100%; height: auto; }
+    .sheet figcaption { font-size: 12px; color: var(--ink-2); }
+    footer { color: var(--ink-2); font-size: 13px; padding-block: 10px 40px; border-top: 1px solid var(--edge); }
+    @media (prefers-reduced-motion: reduce) { .tile, .btn { transition: none; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="unit">
+      <div class="window"><img src="previews/movie8_f.gif" width="256" height="64" alt="Pioneer's dolphin clip, cyan dolphins swimming underwater, playing on a stereo-style display"></div>
+      <div class="brand">
+        <h1><b>OEL</b> for ESPHome</h1>
+        <p>The animations from Pioneer's organic-EL car stereos, on an ESP32's display.</p>
+        <div class="presets" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+    </header>
+    <p class="lede">Pick a board and screen, choose clips from the bank below (hover one to play it), and copy the config. The clips are fetched from <a href="https://github.com/youxufkhan/carozerra">carozerra</a> when ESPHome builds the firmware, so only the ones you pick go in. A sister project to <a href="https://vortitron.github.io/after-dark-esphome/">After Dark for ESPHome</a>.</p>
+
+    <section class="rig" aria-label="Setup">
+      <div class="panel">
+        <h2>Hardware</h2>
+        <div class="fields">
+          <label class="field">Board
+            <select id="board">
+              <option value="esp32c3">ESP32-C3 (Super Mini)</option>
+              <option value="esp32s3">ESP32-S3 (Super Mini)</option>
+            </select>
+          </label>
+          <label class="field">Flash
+            <select id="flash">
+              <option value="4MB">4 MB</option>
+              <option value="8MB">8 MB</option>
+              <option value="16MB">16 MB</option>
+            </select>
+          </label>
+          <label class="field">Screen
+            <select id="screen">
+              <optgroup label="Colour">
+                <option value="ili9341">ILI9341, 320 × 240, SPI</option>
+              </optgroup>
+              <optgroup label="1-bit OLED">
+                <option value="sh1106">SH1106, 128 × 64, I²C (1.3")</option>
+                <option value="ssd1306">SSD1306, 128 × 64, I²C (0.96")</option>
+                <option value="ssd1306_32">SSD1306, 128 × 32, I²C</option>
+                <option value="ssd1306_72">SSD1306, 72 × 40, I²C (on some C3 boards)</option>
+              </optgroup>
+            </select>
+          </label>
+        </div>
+        <p class="note" id="screen-note"></p>
+        <h2 style="margin-top: 18px">Flash</h2>
+        <div class="meter" id="meter" role="meter" aria-label="App slot used" aria-valuemin="0" aria-valuemax="100"></div>
+        <div class="readout"><span>Used <b id="used">–</b></span><span id="left"></span></div>
+        <p class="note" id="parts"></p>
+      </div>
+      <div class="panel">
+        <h2>Config</h2>
+        <textarea id="yaml" spellcheck="false" aria-label="ESPHome config" readonly></textarea>
+        <div class="acts">
+          <button class="btn go" id="copy" type="button">Copy</button>
+          <span id="status" role="status"></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="bank-head">
+      <h2>Clips <small id="picked" style="color: var(--ink-2); font: 400 13px var(--mono); letter-spacing: 0"></small></h2>
+      <div class="chips" id="chips" role="group" aria-label="Show clips of a kind"></div>
+    </div>
+    <div class="bank" id="bank"><p class="note">Loading the clips…</p></div>
+
+    <footer>
+      The clips are Pioneer's, from the files their OEL Screen Saver Studio loaded into the stereos; <a href="https://github.com/youxufkhan/carozerra">carozerra</a> worked out the format and keeps them. Names here are descriptive, not Pioneer's. Component, player and this page: <a href="https://github.com/Vortitron/oel-esphome">Vortitron/oel-esphome</a>.
+    </footer>
+  </div>
+
+  <div class="modal" id="preview" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+      <h3 id="preview-title"></h3>
+      <figure><div><img id="preview-native" alt=""></div><figcaption id="preview-native-note"></figcaption></figure>
+      <figure id="preview-oled-fig"><div><img id="preview-oled" alt="" width="384" height="192"></div><figcaption>As a 128 × 64 OLED shows it.</figcaption></figure>
+      <div class="acts">
+        <label class="pick"><input type="checkbox" id="preview-pick"> In the build</label>
+        <button class="btn go" id="preview-close" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var VERSION = 'v1.0.0';
+    var $ = function (id) { return document.getElementById(id); };
+    var still = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    var SCREENS = {
+      ili9341: { kind: 'colour', note: 'Each clip is scaled up to fill the width, as cyan dots with a gap where they are big enough.',
+        block: function (p) {
+          return 'spi:\n  clk_pin: ' + p.clk + '\n  mosi_pin: ' + p.mosi + '\n\n' +
+            'display:\n  - platform: ili9xxx\n    id: screen\n    model: ILI9341\n' +
+            '    cs_pin: ' + p.cs + '\n    dc_pin: ' + p.dc + '\n    reset_pin: ' + p.rst + '\n' +
+            '    data_rate: 40MHz\n    invert_colors: false\n    dimensions:\n      width: 320\n      height: 240\n' +
+            '    transform:\n      swap_xy: true\n      mirror_x: true\n' +
+            '    update_interval: never     # oel pushes the frames\n    auto_clear_enabled: false\n\n' +
+            'output:\n  - platform: ledc\n    id: backlight_pwm\n    pin: ' + p.bl + '\n\n' +
+            'light:\n  - platform: monochromatic\n    name: Backlight\n    output: backlight_pwm\n    restore_mode: ALWAYS_ON\n';
+        } },
+      sh1106: { kind: 'mono', model: 'SH1106_128X64', note: 'The 256-dot movies show dot for dot and pan across; the rest are scaled and dithered.' },
+      ssd1306: { kind: 'mono', model: 'SSD1306_128X64', note: 'The 256-dot movies show dot for dot and pan across; the rest are scaled and dithered.' },
+      ssd1306_32: { kind: 'mono', model: 'SSD1306_128X32', note: 'Clips are shrunk to fit 32 lines; the small-panel ones suit it best.' },
+      ssd1306_72: { kind: 'mono', model: 'SSD1306_72X40', note: 'The 0.42" OLED on some C3 boards, on GPIO5 and GPIO6. Everything is shrunk a lot.' }
+    };
+    var BOARDS = {
+      esp32s3: { id: 'esp32-s3-devkitc-1',
+        pins: { clk: 'GPIO12', mosi: 'GPIO11', cs: 'GPIO10', dc: 'GPIO9', rst: 'GPIO8', bl: 'GPIO7', sda: 'GPIO5', scl: 'GPIO6' } },
+      esp32c3: { id: 'esp32-c3-devkitm-1',
+        pins: { clk: 'GPIO4', mosi: 'GPIO6', cs: 'GPIO7', dc: 'GPIO5', rst: 'GPIO3', bl: 'GPIO1', sda: 'GPIO5', scl: 'GPIO6' } }
+    };
+    var ORDER = ['Movies', 'Colour movies', 'Small-panel movies', 'Backgrounds', 'Meters', 'Stills'];
+    var SEGMENTS = 30;
+    var data = null, chosen = { movie8_f: true }, filter = 'Movies', previewing = null, lastFocus = null;
+
+    function kb(n) { return n >= 1048576 ? (n / 1048576).toFixed(2) + ' MB' : Math.round(n / 1024) + ' KB'; }
+    function kind() { return SCREENS[$('screen').value].kind; }
+    function picked() { return Object.keys(data.clips).filter(function (n) { return chosen[n]; }); }
+    function animated(name) { return data.clips[name].kind !== 'still'; }
+
+    function facts(c) {
+      var f = c.width + ' × ' + c.height;
+      if (c.kind === 'still') return f + ', a still';
+      if (c.kind === 'meter') return f + ', ' + c.frames / 2 + ' levels × 2';
+      return f + ', ' + c.frames + ' frames, ' + (c.frames * 0.06).toFixed(1) + ' s';
+    }
+
+    /* Posters at rest; the clip plays while the pointer or focus is on it. */
+    function play(img, name, on) {
+      if (!animated(name) || still.matches) return;
+      img.src = 'previews/' + name + (on ? '.gif' : '.png');
+    }
+
+    function buildChips() {
+      var box = $('chips');
+      box.textContent = '';
+      ORDER.concat(['Picked']).forEach(function (cat) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.textContent = cat;
+        b.setAttribute('aria-pressed', String(cat === filter));
+        b.addEventListener('click', function () { filter = cat; buildChips(); buildBank(); });
+        box.appendChild(b);
+      });
+    }
+
+    function buildBank() {
+      var bank = $('bank');
+      bank.textContent = '';
+      Object.keys(data.clips).forEach(function (name) {
+        var c = data.clips[name];
+        if (filter === 'Picked' ? !chosen[name] : c.category !== filter) return;
+        var tile = document.createElement('div');
+        tile.className = 'tile' + (chosen[name] ? ' on' : '');
+        var screen = document.createElement('button');
+        screen.type = 'button';
+        screen.className = 'screen';
+        screen.setAttribute('aria-label', 'Preview ' + c.title);
+        var img = document.createElement('img');
+        img.src = 'previews/' + name + '.png';
+        img.alt = '';
+        img.width = c.width;
+        img.height = c.height;
+        img.loading = 'lazy';
+        screen.appendChild(img);
+        ['mouseenter', 'focus'].forEach(function (e) { screen.addEventListener(e, function () { play(img, name, true); }); });
+        ['mouseleave', 'blur'].forEach(function (e) { screen.addEventListener(e, function () { play(img, name, false); }); });
+        screen.addEventListener('click', function () { openPreview(name); });
+        var meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.innerHTML = '<span class="name"></span><span class="size"></span>';
+        meta.querySelector('.name').textContent = c.title;
+        meta.querySelector('.size').textContent = kb(c.bytes);
+        var fx = document.createElement('div');
+        fx.className = 'facts';
+        fx.textContent = facts(c) + ' · ' + name;
+        var pick = document.createElement('label');
+        pick.className = 'pick';
+        var box = document.createElement('input');
+        box.type = 'checkbox';
+        box.checked = !!chosen[name];
+        box.addEventListener('change', function () {
+          chosen[name] = box.checked;
+          tile.classList.toggle('on', box.checked);
+          update();
+        });
+        pick.appendChild(box);
+        pick.appendChild(document.createTextNode(' In the build'));
+        tile.appendChild(screen);
+        tile.appendChild(meta);
+        tile.appendChild(fx);
+        tile.appendChild(pick);
+        bank.appendChild(tile);
+      });
+      if (!bank.children.length)
+        bank.innerHTML = '<p class="note">' + (filter === 'Picked' ? 'No clips picked yet. Tick “In the build” on one.' : 'Nothing here.') + '</p>';
+    }
+
+    function meter(pct, over) {
+      var g = $('meter'), lit = over ? SEGMENTS : Math.round(Math.min(100, pct) / 100 * SEGMENTS);
+      if (g.children.length !== SEGMENTS) {
+        g.textContent = '';
+        for (var i = 0; i < SEGMENTS; i++) g.appendChild(document.createElement('i'));
+      }
+      Array.prototype.forEach.call(g.children, function (seg, i) {
+        var at = (i + 1) / SEGMENTS;
+        seg.className = i >= lit ? '' : over || at > 0.9 ? 'r' : at > 0.75 ? 'a' : 'g';
+      });
+      g.setAttribute('aria-valuenow', Math.round(pct));
+    }
+
+    function update() {
+      var scr = SCREENS[$('screen').value];
+      $('screen-note').textContent = scr.note;
+      var names = picked();
+      var clips = names.reduce(function (t, n) { return t + data.clips[n].bytes; }, 0);
+      var base = data.base[$('board').value][scr.kind] + 12 * 1024;  // and the player
+      var total = base + clips, slot = data.app_slot[$('flash').value], pct = total / slot * 100;
+      meter(pct, total > slot);
+      $('used').textContent = kb(total) + ' of ' + kb(slot) + ' (' + Math.round(pct) + '%)';
+      var left = $('left');
+      left.className = total > slot ? 'warn' : '';
+      left.textContent = total > slot ? 'Over by ' + kb(total - slot) + ': drop a clip or choose more flash.' : kb(slot - total) + ' free';
+      $('parts').textContent = 'ESPHome with Wi-Fi, the API, OTA and the display: ' + kb(base) + '. ' +
+        names.length + ' clip' + (names.length === 1 ? '' : 's') + ': ' + kb(clips) + '.';
+      $('picked').textContent = names.length ? '· ' + names.length + ' picked, ' + kb(clips) : '';
+      $('yaml').value = yaml(names);
+    }
+
+    function yaml(names) {
+      var b = BOARDS[$('board').value], scr = SCREENS[$('screen').value], p = b.pins;
+      var y = '# OEL for ESPHome, from vortitron.github.io/oel-esphome\n\n' +
+        'esphome:\n  name: oel\n  friendly_name: OEL\n\n' +
+        'esp32:\n  board: ' + b.id + '\n  flash_size: ' + $('flash').value + '\n  framework:\n    type: esp-idf\n\n' +
+        'external_components:\n  - source: github://Vortitron/oel-esphome@' + VERSION + '\n    components: [oel]\n\n' +
+        'logger:\n\nwifi:\n  ssid: !secret wifi_ssid\n  password: !secret wifi_password\n\napi:\nota:\n  - platform: esphome\n\n';
+      if (scr.kind === 'colour') {
+        y += scr.block(p);
+      } else {
+        y += 'i2c:\n  sda: ' + p.sda + '\n  scl: ' + p.scl + '\n  frequency: 400kHz\n\n' +
+          'display:\n  - platform: ssd1306_i2c\n    id: screen\n    model: ' + scr.model +
+          '\n    address: 0x3C\n    update_interval: never     # oel pushes the frames\n    auto_clear_enabled: false\n';
+      }
+      y += '\noel:\n  display_id: screen\n';
+      if (names.length) {
+        y += '  clips:\n';
+        names.forEach(function (n) { y += '    - ' + n + (n === names[0] ? '   # ' + data.clips[n].title : '') + '\n'; });
+        y += '  clip: ' + (names.length > 1 ? 'cycle            # each in turn, or name one' : names[0]) + '\n';
+      } else {
+        y += '  clips: []   # pick at least one clip below\n';
+      }
+      y += '\nselect:\n  - platform: oel\n    name: Dashboard clip\n';
+      return y;
+    }
+
+    function openPreview(name) {
+      var c = data.clips[name];
+      previewing = name;
+      lastFocus = document.activeElement;
+      $('preview-title').textContent = c.title;
+      var native = $('preview-native'), scale = Math.max(1, Math.floor(640 / c.width));
+      native.src = 'previews/' + name + (animated(name) && !still.matches ? '.gif' : '.png');
+      native.width = c.width * scale;
+      native.height = c.height * scale;
+      native.alt = c.title + ', as recorded';
+      $('preview-native-note').textContent = 'As recorded: ' + facts(c) + ', ' + c.colours + ' colours. ' + kb(c.bytes) + ' of flash.';
+      $('preview-oled-fig').hidden = !animated(name);
+      if (animated(name)) {
+        $('preview-oled').src = 'previews/' + name + '-oled.gif';
+        $('preview-oled').alt = c.title + ' on a 128 by 64 OLED';
+      }
+      $('preview-pick').checked = !!chosen[name];
+      $('preview').hidden = false;
+      $('preview-close').focus();
+    }
+    function closePreview() {
+      if ($('preview').hidden) return;
+      $('preview').hidden = true;
+      $('preview-native').removeAttribute('src');
+      $('preview-oled').removeAttribute('src');
+      previewing = null;
+      if (lastFocus) lastFocus.focus();
+    }
+    $('preview-pick').addEventListener('change', function () {
+      chosen[previewing] = this.checked;
+      buildBank();
+      update();
+    });
+    $('preview-close').addEventListener('click', closePreview);
+    $('preview').addEventListener('mousedown', function (e) { if (e.target === this) closePreview(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePreview(); });
+
+    $('copy').addEventListener('click', function () {
+      var text = $('yaml').value, status = $('status');
+      function fallback() { $('yaml').focus(); $('yaml').select(); status.textContent = 'Selected: press Ctrl+C to copy.'; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { status.textContent = 'Copied.'; }, fallback);
+      } else {
+        fallback();
+      }
+    });
+    ['board', 'flash', 'screen'].forEach(function (id) { $(id).addEventListener('change', update); });
+
+    fetch('clips.json').then(function (r) { return r.json(); }).then(function (d) {
+      data = d;
+      buildChips();
+      buildBank();
+      update();
+    }).catch(function () {
+      $('bank').innerHTML = '<p class="note">The clip list didn’t load. Reload the page to try again.</p>';
+    });
+  </script>
+</body>
+</html>

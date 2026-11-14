@@ -1,0 +1,180 @@
+#include "oel_component.h"
+#include "esphome/core/hal.h"
+#include "esphome/core/log.h"
+
+namespace esphome {
+namespace oel {
+
+static const char *const TAG = "oel";
+
+void DisplayCanvas::fill(int x, int y, int w, int h, uint32_t rgb) {
+  if (w <= 0 || h <= 0)
+    return;
+  dirty_ = true;
+  if (mono_) {
+    display_->filled_rectangle(x, y, w, h, rgb ? display::COLOR_ON : display::COLOR_OFF);
+    return;
+  }
+  display_->filled_rectangle(x, y, w, h, Color(rgb >> 16, rgb >> 8 & 255, rgb & 255));
+}
+
+void OelComponent::setup() {
+  ::oelcore::rng.state = random_uint32() | 1;
+  canvas_.attach(display_);
+  if (!screensaver_mode_) {
+    /* We push the frames; the display's own timed redraw would clear them. */
+    display_->stop_poller();
+    display_->set_auto_clear(false);
+  }
+  if (!set_clip(initial_))
+    set_clip(screensaver_mode_ ? "cycle" : "off");
+}
+
+const Clip *OelComponent::find_(const std::string &name) const {
+  for (const auto &c : clips_)
+    if (c.name == name)
+      return &c;
+  return nullptr;
+}
+
+/* Any clip but the one playing. */
+const Clip *OelComponent::pick_() {
+  if (clips_.empty())
+    return nullptr;
+  if (clips_.size() == 1)
+    return &clips_[0];
+  const Clip *c;
+  do {
+    c = &clips_[::oelcore::rng.next() % clips_.size()];
+  } while (c == playing_);
+  return c;
+}
+
+bool OelComponent::play_(const Clip *clip) {
+  if (clip == nullptr)
+    return false;
+  if (!player_)
+    player_.reset(new ::oelcore::Player());
+  if (!player_->begin(canvas_, clip->data, clip->size)) {
+    ESP_LOGW(TAG, "Couldn't play %s (out of memory, or not a clip)", clip->name.c_str());
+    player_.reset();
+    playing_ = nullptr;
+    return false;
+  }
+  playing_ = clip;
+  ESP_LOGD(TAG, "Playing %s", clip->name.c_str());
+  canvas_.take_dirty();
+  display_->update();
+  last_ms_ = started_ms_ = millis();
+  high_freq_.start();
+  return true;
+}
+
+bool OelComponent::set_clip(const std::string &name) {
+  if (name != "cycle" && name != "off" && find_(name) == nullptr) {
+    ESP_LOGW(TAG, "No clip called '%s' in this build", name.c_str());
+    return false;
+  }
+  current_ = name;
+  callback_.call(current_);
+  if (screensaver_mode_ && !running_)
+    return true;  // what start() will play
+  if (name == "off") {
+    if (screensaver_mode_) {
+      stop();
+    } else {
+      player_.reset();
+      playing_ = nullptr;
+      high_freq_.stop();
+      canvas_.fill(0, 0, canvas_.width(), canvas_.height(), 0);
+      display_->update();
+    }
+    return true;
+  }
+  play_(name == "cycle" ? pick_() : find_(name));
+  return true;
+}
+
+void OelComponent::next() {
+  if (!player_ || clips_.empty())
+    return;
+  if (current_ == "cycle") {
+    play_(pick_());
+    return;
+  }
+  /* A fixed clip: move the selection on to the next one in the list. */
+  size_t i = playing_ ? playing_ - clips_.data() : 0;
+  set_clip(clips_[(i + 1) % clips_.size()].name);
+}
+
+void OelComponent::start() {
+  if (!screensaver_mode_ || running_ || current_ == "off")
+    return;
+  /* Move the display's own drawing aside, so its updates push our frames
+     instead of drawing over them. */
+  auto *d = static_cast<display::Display *>(display_);
+  saved_writer_ = std::move(d->*DisplayInternals::writer());
+  d->*DisplayInternals::writer() = DisplayInternals::Writer{};
+  saved_page_ = d->*DisplayInternals::page();
+  d->*DisplayInternals::page() = nullptr;
+  saved_auto_clear_ = d->*DisplayInternals::auto_clear();
+  d->set_auto_clear(false);
+  running_ = true;
+  if (!play_(current_ == "cycle" ? pick_() : find_(current_)))
+    stop();
+}
+
+void OelComponent::stop() {
+  if (!running_)
+    return;
+  player_.reset();
+  playing_ = nullptr;
+  high_freq_.stop();
+  auto *d = static_cast<display::Display *>(display_);
+  d->*DisplayInternals::writer() = std::move(saved_writer_);
+  saved_writer_ = DisplayInternals::Writer{};
+  d->*DisplayInternals::page() = saved_page_;
+  d->set_auto_clear(saved_auto_clear_);
+  running_ = false;
+  ESP_LOGD(TAG, "Stopped; the display is its own again");
+  d->update();
+}
+
+void OelComponent::loop() {
+  if (!player_)
+    return;
+  uint32_t now = millis();
+  uint32_t elapsed = now - last_ms_;
+  if (elapsed < 20)
+    return;
+  last_ms_ = now;
+  player_->frame(canvas_, elapsed / 1000.0f);
+  if (canvas_.take_dirty())
+    display_->update();
+  if (current_ == "cycle" && clips_.size() > 1) {
+    uint32_t pass = (uint32_t) (player_->pass_time() * 1000);
+    uint32_t due = clip_time_ms_;
+    /* A moving clip ends on a whole pass. */
+    if (pass > 0)
+      due = ((clip_time_ms_ + pass - 1) / pass) * pass;
+    if (now - started_ms_ >= due)
+      play_(pick_());
+  }
+}
+
+void OelComponent::dump_config() {
+  ESP_LOGCONFIG(TAG, "OEL clips:");
+  ESP_LOGCONFIG(TAG, "  Screen: %dx%d%s", canvas_.width(), canvas_.height(), canvas_.mono() ? " (1-bit)" : "");
+  ESP_LOGCONFIG(TAG, "  Mode: %s; playing: %s", screensaver_mode_ ? "screensaver" : "always", current_.c_str());
+  for (const auto &c : clips_) {
+    ::oelcore::ClipHeader h;
+    if (::oelcore::Player::parse(c.data, c.size, h))
+      ESP_LOGCONFIG(TAG, "  %s: %dx%d, %d frames, %u bytes", c.name.c_str(), h.width, h.height, h.frames,
+                    (unsigned) c.size);
+    else
+      ESP_LOGCONFIG(TAG, "  %s: not a clip", c.name.c_str());
+  }
+}
+
+}  // namespace oel
+}  // namespace esphome

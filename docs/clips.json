@@ -1,0 +1,850 @@
+{
+ "commit": "d9602015196a92c1bfabcd1cd2f13c50e0c9cb9a",
+ "base": {
+  "esp32c3": {
+   "mono": 779257,
+   "colour": 830899
+  },
+  "esp32s3": {
+   "colour": 763114,
+   "mono": 715536
+  }
+ },
+ "app_slot": {
+  "4MB": 1835008,
+  "8MB": 3932160,
+  "16MB": 8126464
+ },
+ "clips": {
+  "alt_airship": {
+   "title": "Airship",
+   "category": "Small-panel movies",
+   "width": 128,
+   "height": 33,
+   "frames": 150,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 129366
+  },
+  "alt_bgv1": {
+   "title": "Background 1",
+   "category": "Backgrounds",
+   "width": 128,
+   "height": 33,
+   "frames": 29,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 25362
+  },
+  "alt_bgv2": {
+   "title": "Background 2",
+   "category": "Backgrounds",
+   "width": 128,
+   "height": 33,
+   "frames": 29,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 22041
+  },
+  "alt_bgv3": {
+   "title": "Background 3",
+   "category": "Backgrounds",
+   "width": 128,
+   "height": 33,
+   "frames": 29,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 22105
+  },
+  "alt_bgv4": {
+   "title": "Background 4",
+   "category": "Backgrounds",
+   "width": 128,
+   "height": 33,
+   "frames": 29,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 17309
+  },
+  "alt_diverdolphins": {
+   "title": "Diver and Dolphins",
+   "category": "Small-panel movies",
+   "width": 128,
+   "height": 33,
+   "frames": 149,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 130693
+  },
+  "alt_dragonrider": {
+   "title": "Dragon Rider",
+   "category": "Small-panel movies",
+   "width": 128,
+   "height": 33,
+   "frames": 150,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 141730
+  },
+  "alt_meter_li01": {
+   "title": "Small meter 1",
+   "category": "Meters",
+   "width": 64,
+   "height": 66,
+   "frames": 30,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 52675
+  },
+  "alt_meter_li02": {
+   "title": "Small meter 2",
+   "category": "Meters",
+   "width": 64,
+   "height": 66,
+   "frames": 30,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 56850
+  },
+  "alt_meter_li03": {
+   "title": "Small meter 3",
+   "category": "Meters",
+   "width": 64,
+   "height": 66,
+   "frames": 30,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 44176
+  },
+  "alt_meter_li04": {
+   "title": "Small meter 4",
+   "category": "Meters",
+   "width": 64,
+   "height": 66,
+   "frames": 30,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 45275
+  },
+  "alt_meter_li05": {
+   "title": "Small meter 5",
+   "category": "Meters",
+   "width": 64,
+   "height": 66,
+   "frames": 30,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 43083
+  },
+  "alt_meter_li06": {
+   "title": "Small meter 6",
+   "category": "Meters",
+   "width": 64,
+   "height": 66,
+   "frames": 30,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 53878
+  },
+  "alt_meter_li07": {
+   "title": "Small meter 7",
+   "category": "Meters",
+   "width": 64,
+   "height": 66,
+   "frames": 30,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 51297
+  },
+  "alt_meter_li08": {
+   "title": "Small meter 8",
+   "category": "Meters",
+   "width": 64,
+   "height": 66,
+   "frames": 30,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 38146
+  },
+  "alt_metropolis": {
+   "title": "Metropolis",
+   "category": "Small-panel movies",
+   "width": 128,
+   "height": 33,
+   "frames": 150,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 133078
+  },
+  "alt_still_bgp_e1": {
+   "title": "Small still E1",
+   "category": "Stills",
+   "width": 128,
+   "height": 33,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 829
+  },
+  "alt_still_bgp_e2": {
+   "title": "Small still E2",
+   "category": "Stills",
+   "width": 128,
+   "height": 33,
+   "frames": 1,
+   "colours": 2,
+   "kind": "still",
+   "bytes": 75
+  },
+  "alt_still_bgp_e3": {
+   "title": "Small still E3",
+   "category": "Stills",
+   "width": 128,
+   "height": 33,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 543
+  },
+  "alt_still_bgp_e4": {
+   "title": "Small still E4",
+   "category": "Stills",
+   "width": 128,
+   "height": 33,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 885
+  },
+  "alt_still_bgp_e5": {
+   "title": "Small still E5",
+   "category": "Stills",
+   "width": 128,
+   "height": 33,
+   "frames": 1,
+   "colours": 3,
+   "kind": "still",
+   "bytes": 72
+  },
+  "alt_waterboard": {
+   "title": "Waterboard",
+   "category": "Small-panel movies",
+   "width": 128,
+   "height": 33,
+   "frames": 150,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 108969
+  },
+  "alt_wildlife": {
+   "title": "Wildlife",
+   "category": "Small-panel movies",
+   "width": 128,
+   "height": 33,
+   "frames": 150,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 106381
+  },
+  "alt_wrc": {
+   "title": "Rally",
+   "category": "Small-panel movies",
+   "width": 128,
+   "height": 33,
+   "frames": 150,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 106101
+  },
+  "color_01_nightcruising": {
+   "title": "Night Cruising",
+   "category": "Colour movies",
+   "width": 192,
+   "height": 48,
+   "frames": 150,
+   "colours": 16,
+   "kind": "clip",
+   "bytes": 349671
+  },
+  "color_02_greatbarrierreef": {
+   "title": "Great Barrier Reef",
+   "category": "Colour movies",
+   "width": 192,
+   "height": 48,
+   "frames": 150,
+   "colours": 16,
+   "kind": "clip",
+   "bytes": 434429
+  },
+  "color_03_redplanet": {
+   "title": "Red Planet",
+   "category": "Colour movies",
+   "width": 192,
+   "height": 48,
+   "frames": 150,
+   "colours": 16,
+   "kind": "clip",
+   "bytes": 367872
+  },
+  "color_04_island": {
+   "title": "Island",
+   "category": "Colour movies",
+   "width": 192,
+   "height": 48,
+   "frames": 150,
+   "colours": 16,
+   "kind": "clip",
+   "bytes": 365810
+  },
+  "color_05_firedragon": {
+   "title": "Fire Dragon",
+   "category": "Colour movies",
+   "width": 192,
+   "height": 48,
+   "frames": 150,
+   "colours": 16,
+   "kind": "clip",
+   "bytes": 458756
+  },
+  "color_06_racingcart": {
+   "title": "Racing Kart",
+   "category": "Colour movies",
+   "width": 192,
+   "height": 48,
+   "frames": 150,
+   "colours": 16,
+   "kind": "clip",
+   "bytes": 358573
+  },
+  "color_07_motogp": {
+   "title": "MotoGP",
+   "category": "Colour movies",
+   "width": 192,
+   "height": 48,
+   "frames": 150,
+   "colours": 16,
+   "kind": "clip",
+   "bytes": 403864
+  },
+  "color_bgv01": {
+   "title": "Colour background 1",
+   "category": "Backgrounds",
+   "width": 192,
+   "height": 48,
+   "frames": 50,
+   "colours": 7,
+   "kind": "clip",
+   "bytes": 88638
+  },
+  "color_bgv02": {
+   "title": "Colour background 2",
+   "category": "Backgrounds",
+   "width": 192,
+   "height": 48,
+   "frames": 50,
+   "colours": 16,
+   "kind": "clip",
+   "bytes": 159419
+  },
+  "color_bgv03": {
+   "title": "Colour background 3",
+   "category": "Backgrounds",
+   "width": 192,
+   "height": 48,
+   "frames": 50,
+   "colours": 16,
+   "kind": "clip",
+   "bytes": 155927
+  },
+  "color_bgv04": {
+   "title": "Colour background 4",
+   "category": "Backgrounds",
+   "width": 192,
+   "height": 48,
+   "frames": 50,
+   "colours": 16,
+   "kind": "clip",
+   "bytes": 192713
+  },
+  "color_bgv05": {
+   "title": "Colour background 5",
+   "category": "Backgrounds",
+   "width": 192,
+   "height": 48,
+   "frames": 50,
+   "colours": 15,
+   "kind": "clip",
+   "bytes": 145092
+  },
+  "color_bgv06": {
+   "title": "Colour background 6",
+   "category": "Backgrounds",
+   "width": 192,
+   "height": 48,
+   "frames": 50,
+   "colours": 11,
+   "kind": "clip",
+   "bytes": 103845
+  },
+  "color_bgv07": {
+   "title": "Colour background 7",
+   "category": "Backgrounds",
+   "width": 192,
+   "height": 48,
+   "frames": 50,
+   "colours": 16,
+   "kind": "clip",
+   "bytes": 153806
+  },
+  "color_still_bgp01": {
+   "title": "Colour still 1",
+   "category": "Stills",
+   "width": 192,
+   "height": 48,
+   "frames": 1,
+   "colours": 10,
+   "kind": "still",
+   "bytes": 2539
+  },
+  "color_still_bgp02": {
+   "title": "Colour still 2",
+   "category": "Stills",
+   "width": 192,
+   "height": 48,
+   "frames": 1,
+   "colours": 15,
+   "kind": "still",
+   "bytes": 2940
+  },
+  "color_still_bgp03": {
+   "title": "Colour still 3",
+   "category": "Stills",
+   "width": 192,
+   "height": 48,
+   "frames": 1,
+   "colours": 15,
+   "kind": "still",
+   "bytes": 2826
+  },
+  "color_still_bgp04": {
+   "title": "Colour still 4",
+   "category": "Stills",
+   "width": 192,
+   "height": 48,
+   "frames": 1,
+   "colours": 15,
+   "kind": "still",
+   "bytes": 2539
+  },
+  "color_still_bgp05": {
+   "title": "Colour still 5",
+   "category": "Stills",
+   "width": 192,
+   "height": 48,
+   "frames": 1,
+   "colours": 13,
+   "kind": "still",
+   "bytes": 2662
+  },
+  "color_still_bgp06": {
+   "title": "Colour still 6",
+   "category": "Stills",
+   "width": 192,
+   "height": 48,
+   "frames": 1,
+   "colours": 10,
+   "kind": "still",
+   "bytes": 2418
+  },
+  "color_still_bgp07": {
+   "title": "Colour still 7",
+   "category": "Stills",
+   "width": 192,
+   "height": 48,
+   "frames": 1,
+   "colours": 10,
+   "kind": "still",
+   "bytes": 2992
+  },
+  "color_still_bgp08": {
+   "title": "Colour still 8",
+   "category": "Stills",
+   "width": 192,
+   "height": 48,
+   "frames": 1,
+   "colours": 13,
+   "kind": "still",
+   "bytes": 2675
+  },
+  "color_still_bgp09": {
+   "title": "Colour still 9",
+   "category": "Stills",
+   "width": 192,
+   "height": 48,
+   "frames": 1,
+   "colours": 14,
+   "kind": "still",
+   "bytes": 2988
+  },
+  "color_still_bgp10": {
+   "title": "Colour still 10",
+   "category": "Stills",
+   "width": 192,
+   "height": 48,
+   "frames": 1,
+   "colours": 12,
+   "kind": "still",
+   "bytes": 2755
+  },
+  "meter_level01": {
+   "title": "Level meter 1",
+   "category": "Meters",
+   "width": 96,
+   "height": 96,
+   "frames": 22,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 49749
+  },
+  "meter_level02": {
+   "title": "Level meter 2",
+   "category": "Meters",
+   "width": 96,
+   "height": 96,
+   "frames": 22,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 62957
+  },
+  "meter_level03": {
+   "title": "Level meter 3",
+   "category": "Meters",
+   "width": 96,
+   "height": 96,
+   "frames": 22,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 46038
+  },
+  "meter_level04": {
+   "title": "Level meter 4",
+   "category": "Meters",
+   "width": 96,
+   "height": 96,
+   "frames": 22,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 70388
+  },
+  "meter_level05": {
+   "title": "Level meter 5",
+   "category": "Meters",
+   "width": 96,
+   "height": 96,
+   "frames": 22,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 73913
+  },
+  "meter_level06_f": {
+   "title": "Level meter 6",
+   "category": "Meters",
+   "width": 96,
+   "height": 96,
+   "frames": 22,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 61368
+  },
+  "meter_level07_f": {
+   "title": "Level meter 7",
+   "category": "Meters",
+   "width": 96,
+   "height": 96,
+   "frames": 22,
+   "colours": 16,
+   "kind": "meter",
+   "bytes": 74954
+  },
+  "movie1": {
+   "title": "Mountain Flight",
+   "category": "Movies",
+   "width": 256,
+   "height": 64,
+   "frames": 60,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 165763
+  },
+  "movie2": {
+   "title": "City Drive",
+   "category": "Movies",
+   "width": 256,
+   "height": 64,
+   "frames": 60,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 156471
+  },
+  "movie3": {
+   "title": "Flowers",
+   "category": "Movies",
+   "width": 256,
+   "height": 64,
+   "frames": 60,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 164562
+  },
+  "movie4": {
+   "title": "Circuit",
+   "category": "Movies",
+   "width": 256,
+   "height": 64,
+   "frames": 60,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 173165
+  },
+  "movie5": {
+   "title": "Carrozzeria",
+   "category": "Movies",
+   "width": 256,
+   "height": 64,
+   "frames": 60,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 173057
+  },
+  "movie6": {
+   "title": "Jungle",
+   "category": "Movies",
+   "width": 256,
+   "height": 64,
+   "frames": 60,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 192852
+  },
+  "movie7": {
+   "title": "Fight Movie",
+   "category": "Movies",
+   "width": 256,
+   "height": 64,
+   "frames": 60,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 93822
+  },
+  "movie8_f": {
+   "title": "Dolphins",
+   "category": "Movies",
+   "width": 256,
+   "height": 64,
+   "frames": 60,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 202317
+  },
+  "movie9_f": {
+   "title": "Tunnel",
+   "category": "Movies",
+   "width": 256,
+   "height": 64,
+   "frames": 60,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 168794
+  },
+  "movie10_f": {
+   "title": "Machine",
+   "category": "Movies",
+   "width": 256,
+   "height": 64,
+   "frames": 60,
+   "colours": 4,
+   "kind": "clip",
+   "bytes": 171012
+  },
+  "still_bgp01": {
+   "title": "Still 1",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 1969
+  },
+  "still_bgp02": {
+   "title": "Still 2",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 1767
+  },
+  "still_bgp03": {
+   "title": "Still 3",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2353
+  },
+  "still_bgp04": {
+   "title": "Still 4",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2555
+  },
+  "still_bgp05": {
+   "title": "Still 5",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2608
+  },
+  "still_bgp06": {
+   "title": "Still 6",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2155
+  },
+  "still_bgp07": {
+   "title": "Still 7",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2657
+  },
+  "still_bgp08": {
+   "title": "Still 8",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 1375
+  },
+  "still_bgp09": {
+   "title": "Still 9",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2279
+  },
+  "still_bgp_f_10": {
+   "title": "Still 10",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2259
+  },
+  "still_bgp_f_11": {
+   "title": "Still 11",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2382
+  },
+  "still_bgp_f_12": {
+   "title": "Still 12",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2397
+  },
+  "still_bgp_f_13": {
+   "title": "Still 13",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2488
+  },
+  "still_bgp_f_14": {
+   "title": "Still 14",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2037
+  },
+  "still_bgp_f_15": {
+   "title": "Still 15",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2103
+  },
+  "still_bgp_f_16": {
+   "title": "Still 16",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2539
+  },
+  "still_bgp_f_17": {
+   "title": "Still 17",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 4,
+   "kind": "still",
+   "bytes": 2271
+  },
+  "still_bgp_f_18": {
+   "title": "Still 18",
+   "category": "Stills",
+   "width": 256,
+   "height": 48,
+   "frames": 1,
+   "colours": 2,
+   "kind": "still",
+   "bytes": 77
+  }
+ }
+}
