@@ -69,6 +69,16 @@ bool OelComponent::set_aspect(const std::string &name) {
   return false;
 }
 
+void OelComponent::set_cutoff(int percent) {
+  cutoff_ = percent < 0 ? 0 : percent > 100 ? 100 : percent;
+  if (!player_ || !playing_ || !canvas_.mono())
+    return;
+  player_->set_cutoff(cutoff_);
+  player_->redraw(canvas_);
+  if (canvas_.take_dirty())
+    display_->update();
+}
+
 void OelComponent::feed_meter_() {
   if (!meter_source_ || !player_ || player_->header().kind != ::oelcore::METER)
     return;
@@ -83,6 +93,7 @@ bool OelComponent::play_(const Clip *clip) {
   if (!player_)
     player_.reset(new ::oelcore::Player());
   player_->set_aspect(aspect_);
+  player_->set_cutoff(cutoff_);
   if (!player_->begin(canvas_, clip->data, clip->size)) {
     ESP_LOGW(TAG, "Couldn't play %s (out of memory, or not a clip)", clip->name.c_str());
     player_.reset();
@@ -197,6 +208,8 @@ void OelComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "  Screen: %dx%d%s", canvas_.width(), canvas_.height(), canvas_.mono() ? " (1-bit)" : "");
   ESP_LOGCONFIG(TAG, "  Mode: %s; playing: %s; aspect: %s", screensaver_mode_ ? "screensaver" : "always",
                 current_.c_str(), aspect_name_.c_str());
+  if (canvas_.mono())
+    ESP_LOGCONFIG(TAG, "  Cutoff: %d%%", cutoff_);
   if (meter_source_)
     ESP_LOGCONFIG(TAG, "  Meters show %.6g to %.6g (bank %d)", meter_min_, meter_max_, meter_bank_ + 1);
   for (const auto &c : clips_) {

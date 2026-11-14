@@ -10,6 +10,7 @@
  *   OEL_ASPECT=auto|letterbox|crop|stretch   how the clip meets the screen
  *   OEL_LEVEL=sweep                          drive a meter from a slow sine
  *                                            wave, as a sensor would
+ *   OEL_CUTOFF=0..100                        a 1-bit panel's cutoff, percent
  */
 #include "../components/oel/oel_player.h"
 
@@ -83,6 +84,8 @@ int main(int argc, char **argv) {
       if (strcmp(a, names[i]) == 0)
         player.set_aspect((Aspect) i);
   }
+  if (const char *c = getenv("OEL_CUTOFF"))
+    player.set_cutoff(atoi(c));
   bool sweep = getenv("OEL_LEVEL") != nullptr;
   if (!player.begin(canvas, blob.data(), blob.size())) {
     fprintf(stderr, "%s: not a clip\n", argv[1]);

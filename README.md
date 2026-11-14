@@ -10,7 +10,7 @@ copy a config. Or add the component yourself:
 
 ```yaml
 external_components:
-  - source: github://Vortitron/oel-esphome@v1.1.0
+  - source: github://Vortitron/oel-esphome@v1.2.0
     components: [oel]
 
 oel:
@@ -36,7 +36,9 @@ loaded into the stereos. [carozerra](https://github.com/youxufkhan/carozerra)
 worked out the format and keeps the 83 that survive; this repository holds
 none of them. A clip named in the config is fetched from carozerra at a fixed
 commit when ESPHome builds the firmware, and kept in ESPHome's cache after
-that.
+that. Should carozerra go, the build falls back to our fork of it,
+[Vortitron/carozerra](https://github.com/Vortitron/carozerra), which holds
+the same commit.
 
 | Kind | Size | What the player does |
 |---|---|---|
@@ -70,8 +72,23 @@ Home Assistant:
 
 Scaled up, each dot becomes a block, with a gap after it once it is 3 pixels
 or more each way, like the stereo's matrix. Scaled down, a pixel is the
-average of the dots it covers. On a 1-bit panel each colour lights a share of
-its dots, dithered.
+average of the dots it covers.
+
+On a 1-bit panel each shade lights a share of its dots, dithered. The faint
+ones, a quarter of their dots or fewer, come out as a speckle over the
+picture, so `cutoff:` leaves any shade dimmer than it dark. The default 30%
+drops the movies' dimmest grey and the small-panel movies' dotted
+backgrounds; 0% dithers everything, and around 50% leaves only the bright
+outlines. A number makes it a slider in Home Assistant (kept over a
+restart; `restore_value: false` to go back to the YAML's on each boot):
+
+```yaml
+number:
+  - platform: oel
+    name: Dashboard clip cutoff
+```
+
+The builder's 1-bit preview has the same slider.
 
 ### Real meters
 
@@ -136,6 +153,7 @@ oel:
                          # finishes its pass)
   mode: always           # or screensaver
   aspect: auto           # letterbox, crop or stretch
+  cutoff: 30%            # 1-bit panels: shades dimmer than this stay dark
   meter: {...}           # drive the meters (see Real meters)
 ```
 
@@ -159,6 +177,10 @@ select:
   - platform: oel              # the aspect
     type: aspect
     name: Dashboard clip aspect
+
+number:
+  - platform: oel              # the 1-bit cutoff, 0-100%
+    name: Dashboard clip cutoff
 ```
 
 ## Layout
@@ -166,10 +188,11 @@ select:
 - `components/oel/`: the component. `lkd.py` turns an `.lkd` into the blob
   the player takes (palette, then a compressed frame each; see its
   docstring). `oel_player.*` plays a blob onto a `Canvas` and knows nothing of
-  ESPHome; `oel_component.*`, `__init__.py` and `select.py` are the ESPHome
-  end.
+  ESPHome; `oel_component.*`, `__init__.py`, `select.py` and `number.py` are the
+  ESPHome end.
 - `host/`: the player on the desktop (`make -C host`), writing frames as
-  PPM: `host/render CLIP.oel 128x64m 200 OUTDIR`.
+  PPM: `host/render CLIP.oel 128x64m 200 OUTDIR` (`OEL_ASPECT`,
+  `OEL_CUTOFF` and `OEL_LEVEL=sweep` in the environment).
 - `tools/previews.py`: the builder's catalogue (`docs/clips.json`) and its
   previews, each clip played through `host/render`.
 - `docs/`: the builder (GitHub Pages).

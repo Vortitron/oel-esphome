@@ -12,6 +12,7 @@
       clip_time: 20s                 # each clip's turn when cycling
       mode: always                   # or screensaver: oel.start / oel.stop
       aspect: auto                   # letterbox, crop (panned) or stretch
+      cutoff: 30%                    # 1-bit panels: shades dimmer than this stay dark
       meter:                         # drive the level meters (default: made-up music)
         sensor: house_power          # any sensor (a homeassistant one for an entity)
         min: 0                       # the value that reads as empty
@@ -22,9 +23,14 @@
       - platform: oel
         name: Dashboard clip
 
+    number:                          # the cutoff as a slider in Home Assistant
+      - platform: oel
+        name: Dashboard clip cutoff
+
 Clips named from the catalogue are fetched from carozerra
 (https://github.com/youxufkhan/carozerra) at a fixed commit when the firmware
-is built, and kept in ESPHome's cache after that. Each is turned into
+is built, and kept in ESPHome's cache after that; if carozerra can't be
+reached, from our fork of it (https://github.com/Vortitron/carozerra). Each is turned into
 palette-indexed frames compressed one by one (see lkd.py), which the player
 unpacks a frame at a time with the ESP32's ROM inflate.
 
@@ -58,6 +64,7 @@ CONF_METER = "meter"
 CONF_SENSOR = "sensor"
 CONF_LAMBDA = "lambda"
 CONF_ASPECT = "aspect"
+CONF_CUTOFF = "cutoff"
 # auto: letterbox, but crop where a clip would shrink and the screen is tall
 # enough for it (a 256x64 movie on a 128x64 OLED). Order as oelcore::Aspect.
 ASPECTS = ["auto", "letterbox", "crop", "stretch"]
@@ -132,6 +139,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_CLIP_TIME, default="20s"): cv.positive_time_period_milliseconds,
             cv.Optional(CONF_MODE, default="always"): cv.one_of("always", "screensaver", lower=True),
             cv.Optional(CONF_ASPECT, default="auto"): cv.one_of(*ASPECTS, lower=True),
+            cv.Optional(CONF_CUTOFF, default="30%"): cv.percentage,
             cv.Optional(CONF_METER): cv.All(
                 cv.Schema(
                     {
@@ -175,7 +183,16 @@ def _lkd_bytes(clip):
     """The .lkd itself: fetched (and cached) or read from the config's folder."""
     if CONF_FILE in clip:
         return Path(CORE.relative_config_path(clip[CONF_FILE])).read_bytes()
-    url = clip[CONF_URL] if CONF_URL in clip else lkd.catalogue_url(clip["catalogue"])
+    if CONF_URL in clip:
+        return _download(clip[CONF_URL])
+    try:
+        return _download(lkd.catalogue_url(clip["catalogue"]))
+    except cv.Invalid:
+        # carozerra gone or unreachable: the fork has the same commit.
+        return _download(lkd.catalogue_url(clip["catalogue"], lkd.CAROZERRA_MIRROR))
+
+
+def _download(url):
     path = external_files.compute_local_file_dir(DOMAIN) / f"{external_files.url_cache_key(url)}.lkd"
     return external_files.download_content(url, path)
 
@@ -206,6 +223,7 @@ async def to_code(config):
         cg.add(var.add_clip(clip[CONF_NAME], arr, len(blob)))
     cg.add(var.set_initial_clip(config[CONF_CLIP]))
     cg.add(var.set_aspect(config[CONF_ASPECT]))
+    cg.add(var.set_cutoff(round(config[CONF_CUTOFF] * 100)))
     cg.add(var.set_clip_time(config[CONF_CLIP_TIME]))
     if config[CONF_MODE] == "screensaver":
         cg.add(var.set_screensaver_mode(True))

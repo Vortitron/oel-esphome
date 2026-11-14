@@ -111,6 +111,12 @@
     .sheet figure div { background: #000; border-radius: 6px; padding: 10px; display: grid; place-items: center; }
     .sheet figure img { image-rendering: pixelated; max-width: 100%; height: auto; }
     .sheet figcaption { font-size: 12px; color: var(--ink-2); }
+    .sheet canvas { image-rendering: pixelated; max-width: 100%; height: auto; }
+    label.field[hidden] { display: none; }
+    .fields > *, label.field > * { min-width: 0; }
+    .slide { display: flex; align-items: center; gap: 10px; }
+    .slide input { flex: 1; min-width: 0; accent-color: var(--oel); }
+    .slide output { color: var(--ink); font-variant-numeric: tabular-nums; min-width: 4ch; text-align: right; }
     footer { color: var(--ink-2); font-size: 13px; padding-block: 10px 40px; border-top: 1px solid var(--edge); }
     @media (prefers-reduced-motion: reduce) { .tile, .btn { transition: none; } }
   </style>
@@ -165,6 +171,9 @@
               </optgroup>
             </select>
           </label>
+          <label class="field" id="cutoff-field">1-bit cutoff
+            <span class="slide"><input type="range" id="cutoff" min="0" max="100" step="5" value="30"><output id="cutoff-out" for="cutoff">30%</output></span>
+          </label>
         </div>
         <p class="note" id="screen-note"></p>
         <h2 style="margin-top: 18px">Flash</h2>
@@ -189,7 +198,7 @@
     <div class="bank" id="bank"><p class="note">Loading the clips…</p></div>
 
     <footer>
-      The clips are Pioneer's, from the files their OEL Screen Saver Studio loaded into the stereos; <a href="https://github.com/youxufkhan/carozerra">carozerra</a> worked out the format and keeps them. Names here are descriptive, not Pioneer's. Component, player and this page: <a href="https://github.com/Vortitron/oel-esphome">Vortitron/oel-esphome</a>.
+      The clips are Pioneer's, from the files their OEL Screen Saver Studio loaded into the stereos; <a href="https://github.com/youxufkhan/carozerra">carozerra</a> worked out the format and keeps them (with <a href="https://github.com/Vortitron/carozerra">a fork</a> to fall back on). Names here are descriptive, not Pioneer's. Component, player and this page: <a href="https://github.com/Vortitron/oel-esphome">Vortitron/oel-esphome</a>.
     </footer>
   </div>
 
@@ -197,7 +206,10 @@
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="preview-title">
       <h3 id="preview-title"></h3>
       <figure><div><img id="preview-native" alt=""></div><figcaption id="preview-native-note"></figcaption></figure>
-      <figure id="preview-oled-fig"><div><img id="preview-oled" alt="" width="384" height="192"></div><figcaption>As a 128 × 64 OLED shows it.</figcaption></figure>
+      <figure id="preview-oled-fig"><div><canvas id="preview-oled" width="128" height="64" role="img"></canvas></div>
+        <figcaption><span id="preview-oled-note">As a 128 × 64 OLED shows it.</span>
+          <label class="slide">Cutoff <input type="range" id="preview-cutoff" min="0" max="100" step="5" value="30"><output id="preview-cutoff-out" for="preview-cutoff">30%</output></label>
+        </figcaption></figure>
       <div class="acts">
         <label class="pick"><input type="checkbox" id="preview-pick"> In the build</label>
         <button class="btn go" id="preview-close" type="button">Close</button>
@@ -205,8 +217,9 @@
     </div>
   </div>
 
+  <script src="gif.js"></script>
   <script>
-    var VERSION = 'v1.1.0';
+    var VERSION = 'v1.2.0';
     var $ = function (id) { return document.getElementById(id); };
     var still = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (still.matches) document.querySelector('.window img').src = 'previews/movie8_f.png';
@@ -223,10 +236,10 @@
             'output:\n  - platform: ledc\n    id: backlight_pwm\n    pin: ' + p.bl + '\n\n' +
             'light:\n  - platform: monochromatic\n    name: Backlight\n    output: backlight_pwm\n    restore_mode: ALWAYS_ON\n';
         } },
-      sh1106: { kind: 'mono', model: 'SH1106_128X64', note: 'The 256-dot movies show dot for dot and pan across; the rest are scaled and dithered.' },
-      ssd1306: { kind: 'mono', model: 'SSD1306_128X64', note: 'The 256-dot movies show dot for dot and pan across; the rest are scaled and dithered.' },
-      ssd1306_32: { kind: 'mono', model: 'SSD1306_128X32', note: 'Clips are shrunk to fit 32 lines; the small-panel ones suit it best.' },
-      ssd1306_72: { kind: 'mono', model: 'SSD1306_72X40', note: 'The 0.42" OLED on some C3 boards, on GPIO5 and GPIO6. Everything is shrunk a lot.' }
+      sh1106: { kind: 'mono', w: 128, h: 64, model: 'SH1106_128X64', note: 'The 256-dot movies show dot for dot and pan across; the rest are scaled and dithered.' },
+      ssd1306: { kind: 'mono', w: 128, h: 64, model: 'SSD1306_128X64', note: 'The 256-dot movies show dot for dot and pan across; the rest are scaled and dithered.' },
+      ssd1306_32: { kind: 'mono', w: 128, h: 32, model: 'SSD1306_128X32', note: 'Clips are shrunk to fit 32 lines; the small-panel ones suit it best.' },
+      ssd1306_72: { kind: 'mono', w: 72, h: 40, model: 'SSD1306_72X40', note: 'The 0.42" OLED on some C3 boards, on GPIO5 and GPIO6. Everything is shrunk a lot.' }
     };
     var BOARDS = {
       esp32s3: { id: 'esp32-s3-devkitc-1',
@@ -339,7 +352,8 @@
 
     function update() {
       var scr = SCREENS[$('screen').value];
-      $('screen-note').textContent = scr.note;
+      $('screen-note').textContent = scr.note + (scr.kind === 'mono' ? ' Shades dimmer than the cutoff stay dark instead of speckling; open a clip to see it.' : '');
+      $('cutoff-field').hidden = scr.kind !== 'mono';
       var names = picked();
       var clips = names.reduce(function (t, n) { return t + data.clips[n].bytes; }, 0);
       var base = data.base[$('board').value][scr.kind] + 12 * 1024;  // and the player
@@ -375,6 +389,7 @@
         names.forEach(function (n) { y += '    - ' + n + (n === names[0] ? '   # ' + data.clips[n].title : '') + '\n'; });
         y += '  clip: ' + (names.length > 1 ? 'cycle            # each in turn, or name one' : names[0]) + '\n';
         if ($('aspect').value !== 'auto') y += '  aspect: ' + $('aspect').value + '\n';
+        if (scr.kind === 'mono') y += '  cutoff: ' + $('cutoff').value + '%                  # shades dimmer than this stay dark\n';
         if (names.some(function (n) { return data.clips[n].kind === 'meter'; })) {
           y += '  # The meters bounce to made-up music; to show something real instead:\n' +
             '  # meter:\n  #   sensor: house_power     # any sensor, e.g. the homeassistant one below\n' +
@@ -385,10 +400,147 @@
       }
       y += '\nselect:\n  - platform: oel\n    name: Dashboard clip\n' +
         '  - platform: oel\n    type: aspect\n    name: Dashboard clip aspect\n';
+      if (scr.kind === 'mono') y += '\nnumber:                          # the cutoff, as a slider\n  - platform: oel\n    name: Dashboard clip cutoff\n';
       if (names.some(function (n) { return data.clips[n].kind === 'meter'; })) {
         y += '\n# sensor:\n#   - platform: homeassistant\n#     id: house_power\n#     entity_id: sensor.house_power\n';
       }
       return y;
+    }
+
+    /* The 1-bit preview, played from the recorded GIF as the player draws
+       it (oel_player.cpp): laid out by the aspect, the dots each pixel covers
+       averaged, each colour lighting its share of dots through a 4x4 Bayer
+       matrix, and shades dimmer than the cutoff left dark. */
+    var BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+    var oled = { raf: 0, clip: null, start: 0, last: 0, frames: null, index: null, token: 0 };
+
+    function setCutoff(v) {
+      ['cutoff', 'preview-cutoff'].forEach(function (id) {
+        $(id).value = v;
+        $(id + '-out').textContent = v + '%';
+      });
+    }
+
+    function spans(n, offset, scale, size) {
+      var a = new Int16Array(n), b = new Int16Array(n);
+      for (var i = 0; i < n; i++) {
+        var lo, hi;
+        if (scale >= 1) {
+          lo = Math.floor((i + offset + 0.5) / scale);
+          hi = lo + 1;
+        } else {
+          lo = Math.floor((i + offset) / scale + 1e-4);
+          hi = Math.floor((i + offset + 1) / scale + 1e-4);
+          if (hi <= lo) hi = lo + 1;
+        }
+        a[i] = Math.min(lo, size - 1);
+        b[i] = Math.min(hi, size);
+      }
+      return { a: a, b: b };
+    }
+
+    function oledScreen() {
+      var scr = SCREENS[$('screen').value];
+      return scr.kind === 'mono' ? scr : { w: 128, h: 64 };
+    }
+
+    function startOled(c) {
+      var scr = oledScreen(), cv = $('preview-oled'), scale = Math.max(1, Math.floor(384 / scr.w));
+      cv.width = scr.w;
+      cv.height = scr.h;
+      cv.style.width = scr.w * scale + 'px';
+      cv.setAttribute('aria-label', c.title + ' on a ' + scr.w + ' by ' + scr.h + ' OLED');
+      $('preview-oled-note').textContent = 'As a ' + scr.w + ' × ' + scr.h + ' OLED shows it.';
+      cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+      oled.clip = c;
+      oled.index = {};
+      oled.frames = null;
+      cancelAnimationFrame(oled.raf);
+      var token = ++oled.token, name = previewing;
+      function ready(frames) {
+        if (token !== oled.token) return;  // another clip opened since
+        oled.frames = frames;
+        oled.start = oled.last = 0;
+        oled.raf = requestAnimationFrame(drawOled);
+      }
+      /* Each frame as palette indices, with when it ends. */
+      function indices(rgb) {
+        var out = new Uint8Array(rgb.length);
+        for (var i = 0; i < rgb.length; i++) out[i] = paletteIndex(c, rgb[i]);
+        return out;
+      }
+      if (animated(name)) {
+        fetch('previews/' + name + '.gif').then(function (r) { return r.arrayBuffer(); }).then(function (buf) {
+          var g = decodeGif(buf), t = 0;
+          ready(g.frames.map(function (f) { t += f.delay; return { dots: indices(f.rgb), until: t }; }));
+        }).catch(function () {});
+      } else {
+        var img = new Image();
+        img.onload = function () {
+          var src = document.createElement('canvas');
+          src.width = c.width;
+          src.height = c.height;
+          var ctx = src.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          var px = ctx.getImageData(0, 0, c.width, c.height).data, rgb = new Int32Array(c.width * c.height);
+          for (var i = 0; i < rgb.length; i++) rgb[i] = px[4 * i] << 16 | px[4 * i + 1] << 8 | px[4 * i + 2];
+          ready([{ dots: indices(rgb), until: 1 }]);
+        };
+        img.src = 'previews/' + name + '.png';
+      }
+    }
+
+    /* The palette entry for a pixel of the GIF (they are the palette's own
+       colours; the nearest, should one not be). */
+    function paletteIndex(c, rgb) {
+      var k = oled.index[rgb];
+      if (k !== undefined) return k;
+      var best = 1e9;
+      c.palette.forEach(function (hex, i) {
+        var p = parseInt(hex, 16), dr = (p >> 16) - (rgb >> 16), dg = (p >> 8 & 255) - (rgb >> 8 & 255), db = (p & 255) - (rgb & 255);
+        var d = dr * dr + dg * dg + db * db;
+        if (d < best) { best = d; k = i; }
+      });
+      return (oled.index[rgb] = k);
+    }
+
+    function drawOled(now) {
+      oled.raf = requestAnimationFrame(drawOled);
+      if (!oled.start) oled.start = now;
+      if (now - oled.last < 30) return;
+      oled.last = now;
+      var c = oled.clip, frames = oled.frames, w = c.width, h = c.height, cut = +$('cutoff').value;
+      var at = (now - oled.start) % frames[frames.length - 1].until, f = 0;
+      while (frames[f].until <= at) f++;
+      var mono = c.levels.map(function (l) { return l * 100 < cut * 16 ? 0 : l; });
+      var dots = frames[f].dots, lv = new Uint8Array(w * h);
+      for (var i = 0; i < w * h; i++) lv[i] = mono[dots[i]];
+
+      var cv = $('preview-oled'), sw = cv.width, sh = cv.height;
+      var fit = Math.min(sw / w, sh / h), fill = Math.max(sw / w, sh / h), a = $('aspect').value, sx, sy;
+      if (a === 'auto') a = fit < 1 && sh >= h ? 'crop' : 'letterbox';
+      if (a === 'stretch') { sx = sw / w; sy = sh / h; } else { sx = sy = a === 'crop' ? fill : fit; }
+      var fw = Math.max(1, Math.round(w * sx)), fh = Math.max(1, Math.round(h * sy));
+      var vw = Math.min(fw, sw), vh = Math.min(fh, sh), vx = (sw - vw) >> 1, vy = (sh - vh) >> 1;
+      /* What is cropped pans there and back, about ten seconds each way. */
+      var u = 0.5 - 0.5 * Math.cos(((now - oled.start) / 20000 % 1) * 2 * Math.PI);
+      var cols = spans(vw, Math.round((fw - vw) * u), sx, w), rows = spans(vh, Math.round((fh - vh) * u), sy, h);
+
+      var ctx = cv.getContext('2d'), out = ctx.createImageData(sw, sh), d = out.data;
+      for (var j = 0; j < vh; j++) {
+        var py = vy + j;
+        for (var q = 0; q < vw; q++) {
+          var pxx = vx + q, sum = 0, n = 0;
+          for (var yy = rows.a[j]; yy < rows.b[j]; yy++)
+            for (var xx = cols.a[q]; xx < cols.b[q]; xx++) { sum += lv[yy * w + xx]; n++; }
+          if (sum > BAYER[py & 3][pxx & 3] * n) {
+            var at = (py * sw + pxx) * 4;
+            d[at] = d[at + 1] = d[at + 2] = 255;
+          }
+        }
+      }
+      for (var t = 3; t < d.length; t += 4) d[t] = 255;
+      ctx.putImageData(out, 0, 0);
     }
 
     function openPreview(name) {
@@ -402,11 +554,7 @@
       native.height = c.height * scale;
       native.alt = c.title + ', as recorded';
       $('preview-native-note').textContent = 'As recorded: ' + facts(c) + ', ' + c.colours + ' colours. ' + kb(c.bytes) + ' of flash.';
-      $('preview-oled-fig').hidden = !animated(name);
-      if (animated(name)) {
-        $('preview-oled').src = 'previews/' + name + '-oled.gif';
-        $('preview-oled').alt = c.title + ' on a 128 by 64 OLED';
-      }
+      startOled(c);
       $('preview-pick').checked = !!chosen[name];
       $('preview').hidden = false;
       $('preview-close').focus();
@@ -415,7 +563,8 @@
       if ($('preview').hidden) return;
       $('preview').hidden = true;
       $('preview-native').removeAttribute('src');
-      $('preview-oled').removeAttribute('src');
+      cancelAnimationFrame(oled.raf);
+      oled.token++;
       previewing = null;
       if (lastFocus) lastFocus.focus();
     }
@@ -438,6 +587,11 @@
       }
     });
     ['board', 'flash', 'screen', 'aspect'].forEach(function (id) { $(id).addEventListener('change', update); });
+    ['cutoff', 'preview-cutoff'].forEach(function (id) {
+      $(id).addEventListener('input', function () { setCutoff(this.value); });
+    });
+    $('cutoff').addEventListener('change', update);
+    $('preview-cutoff').addEventListener('change', update);
 
     fetch('clips.json').then(function (r) { return r.json(); }).then(function (d) {
       data = d;

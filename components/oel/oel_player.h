@@ -73,6 +73,15 @@ class Player {
     bank_ = bank != 0;
   }
   const ClipHeader &header() const { return head_; }
+  /* On a 1-bit panel, the share of the way from black to white (0-100)
+     below which a shade is left dark instead of dithered: higher drops the
+     faint speckle of the dim greys. Takes effect at the next redraw(). */
+  void set_cutoff(int percent);
+  /* Draw the whole frame again (after set_cutoff). */
+  void redraw(Canvas &c) {
+    if (cur_)
+      draw_(c, true);
+  }
 
  private:
   bool decode_(int index, uint8_t *out);
@@ -107,6 +116,9 @@ class Player {
   float level_ = 0, target_ = 0, beat_ = 0;
   bool bank_ = false, external_ = false;
   float wanted_ = 0;
+  /* Each colour's share of lit dots, 0-16, after the cutoff. */
+  int cutoff_ = 0;
+  uint8_t mono_[16] = {};
 };
 
 }  // namespace oelcore

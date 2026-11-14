@@ -13,7 +13,7 @@ esp32:
     type: esp-idf
 
 external_components:
-  - source: github://Vortitron/oel-esphome@v1.1.0
+  - source: github://Vortitron/oel-esphome@v1.2.0
     components: [oel]
   # Or from a checkout of this repository:
   # - source:
@@ -51,6 +51,7 @@ oel:
     - meter_level01            # a level meter
   clip: cycle
   aspect: auto                 # or letterbox, crop (panned), stretch
+  cutoff: 30%                  # shades dimmer than this stay dark, not speckled
   # The meter bounces to made-up music; to show something real instead:
   # meter:
   #   sensor: house_power      # a sensor, e.g. a homeassistant one
@@ -63,3 +64,7 @@ select:
   - platform: oel
     type: aspect
     name: Dashboard clip aspect
+
+number:
+  - platform: oel              # the cutoff, as a slider
+    name: Dashboard clip cutoff

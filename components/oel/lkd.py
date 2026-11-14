@@ -32,6 +32,8 @@ import tarfile
 import zlib
 
 CAROZERRA = "youxufkhan/carozerra"
+# A fork holding the same commit, should the original go.
+CAROZERRA_MIRROR = "Vortitron/carozerra"
 CAROZERRA_COMMIT = "d9602015196a92c1bfabcd1cd2f13c50e0c9cb9a"
 
 KIND_CLIP, KIND_METER, KIND_STILL = 0, 1, 2
@@ -56,8 +58,8 @@ CATALOGUE = [
 ]
 
 
-def catalogue_url(name):
-    return f"https://raw.githubusercontent.com/{CAROZERRA}/{CAROZERRA_COMMIT}/assets/clips/{name}.lkd"
+def catalogue_url(name, repo=CAROZERRA):
+    return f"https://raw.githubusercontent.com/{repo}/{CAROZERRA_COMMIT}/assets/clips/{name}.lkd"
 
 
 def read_lkd(data):

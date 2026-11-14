@@ -75,6 +75,7 @@ bool Player::begin(Canvas &c, const uint8_t *blob, size_t size) {
     return false;
 
   mono_panel_ = c.mono();
+  set_cutoff(cutoff_);
   sw_ = c.width();
   sh_ = c.height();
   if (!layout_())
@@ -88,6 +89,14 @@ bool Player::begin(Canvas &c, const uint8_t *blob, size_t size) {
     return false;
   draw_(c, true);
   return true;
+}
+
+void Player::set_cutoff(int percent) {
+  cutoff_ = percent < 0 ? 0 : percent > 100 ? 100 : percent;
+  if (!levels_)
+    return;
+  for (int k = 0; k < head_.colours && k < 16; k++)
+    mono_[k] = levels_[k] * 100 < cutoff_ * 16 ? 0 : levels_[k];
 }
 
 float Player::pass_time() const {
@@ -215,7 +224,7 @@ void Player::draw_(Canvas &c, bool all) {
           int k = index_at_(col.a, r.a);
           changed = all || !have_prev_ || prev_index(prev_, head_.bits, (size_t) r.a * w + col.a) != k;
           if (mono_panel_) {
-            rgb = levels_[k] > BAYER[py & 3][px & 3] ? 0xFFFFFF : 0;
+            rgb = mono_[k] > BAYER[py & 3][px & 3] ? 0xFFFFFF : 0;
           } else {
             const uint8_t *p = palette_ + 3 * k;
             rgb = (uint32_t) p[0] << 16 | p[1] << 8 | p[2];
@@ -229,7 +238,7 @@ void Player::draw_(Canvas &c, bool all) {
               rr += p[0];
               gg += p[1];
               bb += p[2];
-              lv += levels_[k];
+              lv += mono_[k];
               n++;
             }
           changed = true;

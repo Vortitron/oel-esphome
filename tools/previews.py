@@ -11,7 +11,9 @@ For each clip in the catalogue:
     previews/<name>.png        a still, at the clip's own size
     previews/<name>.gif        the clip playing at its own size, a pass of it
                                (a meter: six seconds of its made-up music)
-    previews/<name>-oled.gif   six seconds as a 128x64 1-bit OLED shows it (not stills)
+
+and in clips.json its palette and each colour's share of lit dots on a 1-bit
+panel, from which the builder draws its OLED preview live off the GIF.
 
 --lkd is a folder of .lkd files already downloaded; otherwise they are
 fetched from carozerra into tools/.cache/.
@@ -124,12 +126,14 @@ def main():
                             os.path.join(OUT, 'previews', name + '.png')], check=True)
             if kind != lkd.KIND_STILL:
                 gif(frames, os.path.join(OUT, 'previews', name + '.gif'), info['colours'])
-                render(blob_path, '128x64m', int(6 * FPS), frames)
-                gif(frames, os.path.join(OUT, 'previews', name + '-oled.gif'), 2)
+            cols = blob[11]
+            palette = blob[16:16 + 3 * cols]
             clips[name] = {
                 'title': title(name), 'category': category(name), 'width': info['width'],
                 'height': info['height'], 'frames': info['frames'], 'colours': info['colours'],
                 'kind': ['clip', 'meter', 'still'][kind], 'bytes': info['bytes'],
+                'palette': [palette[i:i + 3].hex() for i in range(0, len(palette), 3)],
+                'levels': list(blob[16 + 3 * cols:16 + 4 * cols]),
             }
             print('%-28s %-24s %7d bytes' % (name, clips[name]['title'], info['bytes']))
     # Firmware without clips, from real builds (ESPHome 2026.10.1, ESP-IDF, Wi-Fi + API + OTA, the

@@ -75,6 +75,10 @@ class OelComponent : public Component {
   bool set_aspect(const std::string &name);
   const std::string &get_aspect() const { return aspect_name_; }
   void add_on_aspect_callback(std::function<void(const std::string &)> &&cb) { aspect_callback_.add(std::move(cb)); }
+  /* A 1-bit panel's cutoff, percent: shades dimmer than this are left
+     dark instead of dithered. */
+  void set_cutoff(int percent);
+  int get_cutoff() const { return cutoff_; }
   /* What drives the meters (in the units of min and max), instead of the
      made-up music; and which bank of their frames to show. */
   void set_meter_source(std::function<float()> &&f, float min, float max, int bank) {
@@ -117,6 +121,7 @@ class OelComponent : public Component {
   uint32_t clip_time_ms_{20000};
   ::oelcore::Aspect aspect_{::oelcore::AUTO};
   std::string aspect_name_{"auto"};
+  int cutoff_{30};
   CallbackManager<void(const std::string &)> aspect_callback_;
   std::function<float()> meter_source_;
   float meter_min_{0}, meter_max_{100};
