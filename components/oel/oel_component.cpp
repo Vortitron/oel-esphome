@@ -50,11 +50,39 @@ const Clip *OelComponent::pick_() {
   return c;
 }
 
+static const char *const ASPECTS[] = {"auto", "letterbox", "crop", "stretch"};
+
+bool OelComponent::set_aspect(const std::string &name) {
+  for (int i = 0; i < 4; i++)
+    if (name == ASPECTS[i]) {
+      aspect_ = (::oelcore::Aspect) i;
+      aspect_name_ = name;
+      aspect_callback_.call(aspect_name_);
+      if (player_ && playing_) {
+        uint32_t started = started_ms_;
+        play_(playing_);
+        started_ms_ = started;  // its turn isn't restarted
+      }
+      return true;
+    }
+  ESP_LOGW(TAG, "No aspect called '%s' (auto, letterbox, crop or stretch)", name.c_str());
+  return false;
+}
+
+void OelComponent::feed_meter_() {
+  if (!meter_source_ || !player_ || player_->header().kind != ::oelcore::METER)
+    return;
+  float v = meter_source_();
+  float span = meter_max_ - meter_min_;
+  player_->set_level(span == 0 ? 0 : (v - meter_min_) / span, meter_bank_);
+}
+
 bool OelComponent::play_(const Clip *clip) {
   if (clip == nullptr)
     return false;
   if (!player_)
     player_.reset(new ::oelcore::Player());
+  player_->set_aspect(aspect_);
   if (!player_->begin(canvas_, clip->data, clip->size)) {
     ESP_LOGW(TAG, "Couldn't play %s (out of memory, or not a clip)", clip->name.c_str());
     player_.reset();
@@ -62,6 +90,7 @@ bool OelComponent::play_(const Clip *clip) {
     return false;
   }
   playing_ = clip;
+  feed_meter_();
   ESP_LOGD(TAG, "Playing %s", clip->name.c_str());
   canvas_.take_dirty();
   display_->update();
@@ -148,6 +177,7 @@ void OelComponent::loop() {
   if (elapsed < 20)
     return;
   last_ms_ = now;
+  feed_meter_();
   player_->frame(canvas_, elapsed / 1000.0f);
   if (canvas_.take_dirty())
     display_->update();
@@ -165,7 +195,10 @@ void OelComponent::loop() {
 void OelComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "OEL clips:");
   ESP_LOGCONFIG(TAG, "  Screen: %dx%d%s", canvas_.width(), canvas_.height(), canvas_.mono() ? " (1-bit)" : "");
-  ESP_LOGCONFIG(TAG, "  Mode: %s; playing: %s", screensaver_mode_ ? "screensaver" : "always", current_.c_str());
+  ESP_LOGCONFIG(TAG, "  Mode: %s; playing: %s; aspect: %s", screensaver_mode_ ? "screensaver" : "always",
+                current_.c_str(), aspect_name_.c_str());
+  if (meter_source_)
+    ESP_LOGCONFIG(TAG, "  Meters show %.6g to %.6g (bank %d)", meter_min_, meter_max_, meter_bank_ + 1);
   for (const auto &c : clips_) {
     ::oelcore::ClipHeader h;
     if (::oelcore::Player::parse(c.data, c.size, h))

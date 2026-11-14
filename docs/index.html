@@ -144,6 +144,14 @@
               <option value="16MB">16 MB</option>
             </select>
           </label>
+          <label class="field">Aspect
+            <select id="aspect">
+              <option value="auto">Auto</option>
+              <option value="letterbox">Letterbox: all of it</option>
+              <option value="crop">Crop: fill, and pan</option>
+              <option value="stretch">Stretch: fill</option>
+            </select>
+          </label>
           <label class="field">Screen
             <select id="screen">
               <optgroup label="Colour">
@@ -198,7 +206,7 @@
   </div>
 
   <script>
-    var VERSION = 'v1.0.0';
+    var VERSION = 'v1.1.0';
     var $ = function (id) { return document.getElementById(id); };
     var still = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (still.matches) document.querySelector('.window img').src = 'previews/movie8_f.png';
@@ -238,7 +246,7 @@
     function facts(c) {
       var f = c.width + ' × ' + c.height;
       if (c.kind === 'still') return f + ', a still';
-      if (c.kind === 'meter') return f + ', ' + c.frames / 2 + ' levels × 2';
+      if (c.kind === 'meter') return f + ', ' + c.frames / 2 + ' levels × 2, driven by a sensor or made-up music';
       return f + ', ' + c.frames + ' frames, ' + (c.frames * 0.06).toFixed(1) + ' s';
     }
 
@@ -366,10 +374,20 @@
         y += '  clips:\n';
         names.forEach(function (n) { y += '    - ' + n + (n === names[0] ? '   # ' + data.clips[n].title : '') + '\n'; });
         y += '  clip: ' + (names.length > 1 ? 'cycle            # each in turn, or name one' : names[0]) + '\n';
+        if ($('aspect').value !== 'auto') y += '  aspect: ' + $('aspect').value + '\n';
+        if (names.some(function (n) { return data.clips[n].kind === 'meter'; })) {
+          y += '  # The meters bounce to made-up music; to show something real instead:\n' +
+            '  # meter:\n  #   sensor: house_power     # any sensor, e.g. the homeassistant one below\n' +
+            '  #   min: 0                  # reads empty\n  #   max: 5000               # reads full\n';
+        }
       } else {
         y += '  clips: []   # pick at least one clip below\n';
       }
-      y += '\nselect:\n  - platform: oel\n    name: Dashboard clip\n';
+      y += '\nselect:\n  - platform: oel\n    name: Dashboard clip\n' +
+        '  - platform: oel\n    type: aspect\n    name: Dashboard clip aspect\n';
+      if (names.some(function (n) { return data.clips[n].kind === 'meter'; })) {
+        y += '\n# sensor:\n#   - platform: homeassistant\n#     id: house_power\n#     entity_id: sensor.house_power\n';
+      }
       return y;
     }
 
@@ -419,7 +437,7 @@
         fallback();
       }
     });
-    ['board', 'flash', 'screen'].forEach(function (id) { $(id).addEventListener('change', update); });
+    ['board', 'flash', 'screen', 'aspect'].forEach(function (id) { $(id).addEventListener('change', update); });
 
     fetch('clips.json').then(function (r) { return r.json(); }).then(function (d) {
       data = d;

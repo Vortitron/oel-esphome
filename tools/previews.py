@@ -119,7 +119,9 @@ def main():
             n = 1 if kind == lkd.KIND_STILL else int(6 * FPS) if kind == lkd.KIND_METER else info['frames']
             render(blob_path, '%dx%d' % (info['width'], info['height']), n, frames)
             poster = os.path.join(frames, '%04d.ppm' % (n // 3))
-            subprocess.run(['convert', poster, os.path.join(OUT, 'previews', name + '.png')], check=True)
+            # No date chunks, so a rerun only changes the stills that changed.
+            subprocess.run(['convert', poster, '-define', 'png:exclude-chunks=date,time',
+                            os.path.join(OUT, 'previews', name + '.png')], check=True)
             if kind != lkd.KIND_STILL:
                 gif(frames, os.path.join(OUT, 'previews', name + '.gif'), info['colours'])
                 render(blob_path, '128x64m', int(6 * FPS), frames)

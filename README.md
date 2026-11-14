@@ -10,7 +10,7 @@ copy a config. Or add the component yourself:
 
 ```yaml
 external_components:
-  - source: github://Vortitron/oel-esphome@v1.0.0
+  - source: github://Vortitron/oel-esphome@v1.1.0
     components: [oel]
 
 oel:
@@ -58,12 +58,52 @@ Your own `.lkd` works too:
 
 ### On the screen
 
-A clip is scaled to the screen's width, keeping its shape; on a colour panel
-each dot becomes a block, with a gap between blocks once they are 3 pixels or
-more, like the stereo's matrix. Where a clip would have to shrink but the
-screen is tall enough (a 256×64 movie on a 128×64 OLED), it is shown dot for
-dot and the view pans slowly across it, because halving a dithered picture
-loses it. On a 1-bit panel each colour lights a share of its dots, dithered.
+`aspect:` sets how a clip meets the screen, and a select can change it from
+Home Assistant:
+
+| `aspect` | |
+|---|---|
+| `letterbox` | all of the clip, its shape kept, black bars around |
+| `crop` | the screen filled, its shape kept; what overflows pans slowly across and back |
+| `stretch` | the screen filled edge to edge, its shape not kept |
+| `auto` (default) | letterbox, except crop where a clip would have to shrink but the screen is tall enough (a 256×64 movie on a 128×64 OLED): halving a dithered picture loses it |
+
+Scaled up, each dot becomes a block, with a gap after it once it is 3 pixels
+or more each way, like the stereo's matrix. Scaled down, a pixel is the
+average of the dots it covers. On a 1-bit panel each colour lights a share of
+its dots, dithered.
+
+### Real meters
+
+The level meters bounce to made-up music unless `meter:` gives them
+something to show: any ESPHome sensor, or a lambda.
+
+```yaml
+oel:
+  # ...
+  meter:
+    sensor: house_power      # the sensor's state ...
+    min: 0                   # ... at min reads empty,
+    max: 5000                # ... at max full
+    style: 1                 # each meter has two looks, 1 or 2
+
+sensor:
+  - platform: homeassistant  # a Home Assistant entity
+    id: house_power
+    entity_id: sensor.house_power
+```
+
+It rises at once and falls back steadily, like a real meter, so a sensor that
+updates every few seconds still moves smoothly. Some ideas:
+
+- A media player's volume: a `homeassistant` sensor with
+  `attribute: volume_level`, `min: 0`, `max: 1`.
+- Sound in the room: ESPHome's `sound_level` sensor on an I²S microphone,
+  in dB, for a meter that really does follow the music.
+- Anything worked out: `lambda: 'return id(a).state - id(b).state;'` in
+  place of `sensor:`.
+
+A sensor with no value yet (or unavailable) reads as empty.
 
 Only what changed since the last frame is drawn.
 
@@ -95,6 +135,8 @@ oel:
   clip_time: 20s         # each clip's turn when cycling (a movie always
                          # finishes its pass)
   mode: always           # or screensaver
+  aspect: auto           # letterbox, crop or stretch
+  meter: {...}           # drive the meters (see Real meters)
 ```
 
 In `mode: always` the display should have no `lambda` or `pages`, and needs
@@ -109,6 +151,15 @@ and the actions hand it over and back:
 ```
 
 `oel.is_running` is a condition.
+
+```yaml
+select:
+  - platform: oel              # the clip, "cycle" or "off"
+    name: Dashboard clip
+  - platform: oel              # the aspect
+    type: aspect
+    name: Dashboard clip aspect
+```
 
 ## Layout
 

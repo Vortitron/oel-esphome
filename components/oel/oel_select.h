@@ -11,18 +11,32 @@
 namespace esphome {
 namespace oel {
 
+/* Chooses the clip, or with set_aspect_select() the aspect. */
 class OelSelect : public select::Select, public Component {
  public:
   void set_parent(OelComponent *parent) { parent_ = parent; }
+  void set_aspect_select() { aspect_ = true; }
   void setup() override {
-    parent_->add_on_clip_callback([this](const std::string &name) { this->publish_state(name); });
+    auto publish = [this](const std::string &name) { this->publish_state(name); };
+    if (aspect_) {
+      parent_->add_on_aspect_callback(publish);
+      this->publish_state(parent_->get_aspect());
+      return;
+    }
+    parent_->add_on_clip_callback(publish);
     if (!parent_->get_clip().empty())
       this->publish_state(parent_->get_clip());
   }
 
  protected:
-  void control(const std::string &value) override { parent_->set_clip(value); }
+  void control(const std::string &value) override {
+    if (aspect_)
+      parent_->set_aspect(value);
+    else
+      parent_->set_clip(value);
+  }
   OelComponent *parent_{nullptr};
+  bool aspect_{false};
 };
 
 }  // namespace oel

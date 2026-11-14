@@ -13,7 +13,7 @@ esp32:
     type: esp-idf
 
 external_components:
-  - source: github://Vortitron/oel-esphome@v1.0.0
+  - source: github://Vortitron/oel-esphome@v1.1.0
     components: [oel]
   # Or from a checkout of this repository:
   # - source:
@@ -48,9 +48,18 @@ oel:
   clips:
     - movie8_f                 # dolphins underwater
     - alt_diverdolphins        # a diver with dolphins
-    - meter_level01            # a level meter, bouncing to made-up music
+    - meter_level01            # a level meter
   clip: cycle
+  aspect: auto                 # or letterbox, crop (panned), stretch
+  # The meter bounces to made-up music; to show something real instead:
+  # meter:
+  #   sensor: house_power      # a sensor, e.g. a homeassistant one
+  #   min: 0
+  #   max: 5000
 
 select:
   - platform: oel
     name: Dashboard clip
+  - platform: oel
+    type: aspect
+    name: Dashboard clip aspect

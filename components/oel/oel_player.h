@@ -3,11 +3,17 @@
  * oel_player.h - plays one Pioneer OEL clip (a blob made by lkd.py) onto a
  * Canvas. Knows nothing of ESPHome, so host/render.cpp runs the same code.
  *
- * The clip is scaled to the screen's width keeping its shape (nearest dot,
- * with a gap between dots once each is 3 pixels or more, like the stereo's
- * panel). Where it would have to shrink but the screen is tall enough, it is
- * shown dot for dot and the view pans across instead: halving a dithered
- * picture loses it. Shrunk anyway, a pixel is the average of what it covers.
+ * How a clip meets the screen (Aspect):
+ *   LETTERBOX  all of it, its shape kept, black bars around
+ *   CROP       the screen filled, its shape kept; what overflows is panned
+ *              across slowly, there and back
+ *   STRETCH    the screen filled, its shape not kept
+ *   AUTO       letterbox, except crop where the clip would have to shrink
+ *              but the screen is tall enough (a 256x64 clip on a 128x64
+ *              OLED): halving a dithered picture loses it
+ * Scaled up, each dot is a block of pixels, with a gap after it once it is
+ * 3 pixels or more each way, like the stereo's panel. Scaled down, a pixel
+ * is the average of the dots it covers.
  *
  * Only what changed since the last frame is drawn.
  */
@@ -45,23 +51,38 @@ struct ClipHeader {
 };
 
 enum Kind { CLIP = 0, METER = 1, STILL = 2 };
+enum Aspect { AUTO = 0, LETTERBOX = 1, CROP = 2, STRETCH = 3 };
 
 class Player {
  public:
   ~Player();
   /* False if the blob isn't a clip this code understands. */
   static bool parse(const uint8_t *blob, size_t size, ClipHeader &out);
+  /* Before begin(). */
+  void set_aspect(Aspect a) { aspect_ = a; }
   bool begin(Canvas &c, const uint8_t *blob, size_t size);
   /* Move on by dt seconds, drawing when a frame is due. */
   void frame(Canvas &c, float dt);
   /* Seconds of one pass through the clip (a still: none). */
   float pass_time() const;
+  /* A meter's level from outside, 0-1 (NaN reads as 0), instead of the
+     made-up music; and which of its two banks of frames to show (0 or 1). */
+  void set_level(float v, int bank) {
+    external_ = true;
+    wanted_ = v != v ? 0 : v < 0 ? 0 : v > 1 ? 1 : v;
+    bank_ = bank != 0;
+  }
   const ClipHeader &header() const { return head_; }
 
  private:
   bool decode_(int index, uint8_t *out);
+  struct Span {
+    int16_t a, b;
+    bool gap;
+  };
+  bool layout_();
+  void spans_(Span *out, int n, int offset, float scale, int size);
   int index_at_(int x, int y) const;
-  uint32_t mono_(int dx, int dy, int index) const;
   void draw_(Canvas &c, bool all);
   void next_meter_level_(float dt);
 
@@ -73,14 +94,19 @@ class Player {
   void *inflator_ = nullptr;
   bool mono_panel_ = false, have_prev_ = false;
   int sw_ = 0, sh_ = 0;
-  /* Where the clip goes on screen, and at what scale (in 1/256ths). */
-  int dx_ = 0, dy_ = 0, dw_ = 0, dh_ = 0;
-  int pan_ = 0, offset_ = 0, drawn_offset_ = -1;
-  bool shrink_ = false, gap_ = false;
+  Aspect aspect_ = AUTO;
+  /* The clip's pixels on screen (x, y, width, height), its scale each way,
+     how far it overflows each way (cropped) and how far it is panned. */
+  int vx_ = 0, vy_ = 0, vw_ = 0, vh_ = 0;
+  float sx_ = 1, sy_ = 1;
+  int pan_x_ = 0, pan_y_ = 0, ox_ = 0, oy_ = 0;
+  bool gap_ = false;
+  Span *cols_ = nullptr, *rows_ = nullptr;
   int index_ = 0;
   float clock_ = 0, played_ = 0;
   float level_ = 0, target_ = 0, beat_ = 0;
-  bool bank_ = false;
+  bool bank_ = false, external_ = false;
+  float wanted_ = 0;
 };
 
 }  // namespace oelcore

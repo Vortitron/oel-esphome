@@ -4,11 +4,16 @@
  *
  *   host/render CLIP.oel WxH[m] FRAMES OUTDIR [FPS] [SEED]
  *
- * CLIP.oel is a blob from tools/clip.py; "m" after the size makes a 1-bit
- * panel. Frames go to OUTDIR/NNNN.ppm.
+ * CLIP.oel is a blob made by components/oel/lkd.py; "m" after the size makes
+ * a 1-bit panel. Frames go to OUTDIR/NNNN.ppm.
+ *
+ *   OEL_ASPECT=auto|letterbox|crop|stretch   how the clip meets the screen
+ *   OEL_LEVEL=sweep                          drive a meter from a slow sine
+ *                                            wave, as a sensor would
  */
 #include "../components/oel/oel_player.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -72,12 +77,21 @@ int main(int argc, char **argv) {
   rng.state = argc > 6 ? strtoul(argv[6], nullptr, 10) | 1 : 1;
   HostCanvas canvas(w, h, mono);
   Player player;
+  if (const char *a = getenv("OEL_ASPECT")) {
+    const char *names[] = {"auto", "letterbox", "crop", "stretch"};
+    for (int i = 0; i < 4; i++)
+      if (strcmp(a, names[i]) == 0)
+        player.set_aspect((Aspect) i);
+  }
+  bool sweep = getenv("OEL_LEVEL") != nullptr;
   if (!player.begin(canvas, blob.data(), blob.size())) {
     fprintf(stderr, "%s: not a clip\n", argv[1]);
     return 1;
   }
   char path[512];
   for (int i = 0; i < frames; i++) {
+    if (sweep)
+      player.set_level(0.5f - 0.5f * cosf(i / fps * 1.3f), 0);
     if (i > 0)
       player.frame(canvas, 1 / fps);
     snprintf(path, sizeof path, "%s/%04d.ppm", argv[4], i);

@@ -70,6 +70,19 @@ class OelComponent : public Component {
      whole pass). */
   void set_clip_time(uint32_t ms) { clip_time_ms_ = ms; }
   void set_screensaver_mode(bool on) { screensaver_mode_ = on; }
+  /* How a clip meets the screen: auto, letterbox, crop or stretch. Changing
+     it while a clip plays starts that clip again laid out the new way. */
+  bool set_aspect(const std::string &name);
+  const std::string &get_aspect() const { return aspect_name_; }
+  void add_on_aspect_callback(std::function<void(const std::string &)> &&cb) { aspect_callback_.add(std::move(cb)); }
+  /* What drives the meters (in the units of min and max), instead of the
+     made-up music; and which bank of their frames to show. */
+  void set_meter_source(std::function<float()> &&f, float min, float max, int bank) {
+    meter_source_ = std::move(f);
+    meter_min_ = min;
+    meter_max_ = max;
+    meter_bank_ = bank;
+  }
 
   /* Screensaver mode: start() plays the selected clip (or cycles), stop()
      gives the display back and redraws it. */
@@ -93,6 +106,7 @@ class OelComponent : public Component {
   const Clip *find_(const std::string &name) const;
   bool play_(const Clip *clip);
   const Clip *pick_();
+  void feed_meter_();
 
   display::Display *display_{nullptr};
   DisplayCanvas canvas_;
@@ -101,6 +115,12 @@ class OelComponent : public Component {
   const Clip *playing_{nullptr};
   std::string initial_{"cycle"}, current_;
   uint32_t clip_time_ms_{20000};
+  ::oelcore::Aspect aspect_{::oelcore::AUTO};
+  std::string aspect_name_{"auto"};
+  CallbackManager<void(const std::string &)> aspect_callback_;
+  std::function<float()> meter_source_;
+  float meter_min_{0}, meter_max_{100};
+  int meter_bank_{0};
   uint32_t last_ms_{0}, started_ms_{0};
   bool screensaver_mode_{false}, running_{false};
   DisplayInternals::Writer saved_writer_{};

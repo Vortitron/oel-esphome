@@ -11,6 +11,12 @@
       clip: cycle                    # what to start with: a clip, cycle or off
       clip_time: 20s                 # each clip's turn when cycling
       mode: always                   # or screensaver: oel.start / oel.stop
+      aspect: auto                   # letterbox, crop (panned) or stretch
+      meter:                         # drive the level meters (default: made-up music)
+        sensor: house_power          # any sensor (a homeassistant one for an entity)
+        min: 0                       # the value that reads as empty
+        max: 5000                    # ... and as full
+        style: 1                     # which of a meter's two looks, 1 or 2
 
     select:
       - platform: oel
@@ -32,7 +38,7 @@ from pathlib import Path
 from esphome import automation, external_files
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import display
+from esphome.components import display, sensor
 from esphome.const import CONF_FILE, CONF_ID, CONF_NAME, CONF_URL
 from esphome.core import CORE, HexInt
 
@@ -48,6 +54,13 @@ CONF_CLIP_TIME = "clip_time"
 CONF_MODE = "mode"
 CONF_OEL_ID = "oel_id"
 CONF_RAW_DATA_ID = "raw_data_id"
+CONF_METER = "meter"
+CONF_SENSOR = "sensor"
+CONF_LAMBDA = "lambda"
+CONF_ASPECT = "aspect"
+# auto: letterbox, but crop where a clip would shrink and the screen is tall
+# enough for it (a 256x64 movie on a 128x64 OLED). Order as oelcore::Aspect.
+ASPECTS = ["auto", "letterbox", "crop", "stretch"]
 
 oel_ns = cg.esphome_ns.namespace("oel")
 OelComponent = oel_ns.class_("OelComponent", cg.Component)
@@ -118,6 +131,19 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_CLIP): cv.string,
             cv.Optional(CONF_CLIP_TIME, default="20s"): cv.positive_time_period_milliseconds,
             cv.Optional(CONF_MODE, default="always"): cv.one_of("always", "screensaver", lower=True),
+            cv.Optional(CONF_ASPECT, default="auto"): cv.one_of(*ASPECTS, lower=True),
+            cv.Optional(CONF_METER): cv.All(
+                cv.Schema(
+                    {
+                        cv.Exclusive(CONF_SENSOR, "source"): cv.use_id(sensor.Sensor),
+                        cv.Exclusive(CONF_LAMBDA, "source"): cv.returning_lambda,
+                        cv.Optional("min", default=0.0): cv.float_,
+                        cv.Optional("max", default=100.0): cv.float_,
+                        cv.Optional("style", default=1): cv.int_range(min=1, max=2),
+                    }
+                ),
+                cv.has_exactly_one_key(CONF_SENSOR, CONF_LAMBDA),
+            ),
         }
     ).extend(cv.COMPONENT_SCHEMA),
     _check,
@@ -179,6 +205,14 @@ async def to_code(config):
         arr = cg.progmem_array(clip[CONF_RAW_DATA_ID], [HexInt(b) for b in blob])
         cg.add(var.add_clip(clip[CONF_NAME], arr, len(blob)))
     cg.add(var.set_initial_clip(config[CONF_CLIP]))
+    cg.add(var.set_aspect(config[CONF_ASPECT]))
     cg.add(var.set_clip_time(config[CONF_CLIP_TIME]))
     if config[CONF_MODE] == "screensaver":
         cg.add(var.set_screensaver_mode(True))
+    if meter := config.get(CONF_METER):
+        if CONF_SENSOR in meter:
+            sens = await cg.get_variable(meter[CONF_SENSOR])
+            source = cg.RawExpression(f"[]() -> float {{ return {sens}->state; }}")
+        else:
+            source = await cg.process_lambda(meter[CONF_LAMBDA], [], return_type=cg.float_)
+        cg.add(var.set_meter_source(source, meter["min"], meter["max"], meter["style"] - 1))
