@@ -118,7 +118,9 @@
     #preview-dither[hidden] { display: none; }
     #preview-dither { display: grid; gap: 4px; }
     .aspects { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
-    label.field[hidden] { display: none; }
+    label.field[hidden], label.check[hidden] { display: none; }
+    label.check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); cursor: pointer; }
+    label.check input { accent-color: var(--oel); margin: 0; }
     .fields > *, label.field > * { min-width: 0; }
     .slide { display: flex; align-items: center; gap: 10px; }
     .slide input { flex: 1; min-width: 0; accent-color: var(--oel); }
@@ -183,6 +185,7 @@
           <label class="field" id="cutoff-field">1-bit cutoff
             <span class="slide"><input type="range" id="cutoff" min="0" max="100" step="5" value="30"><output id="cutoff-out" for="cutoff">30%</output></span>
           </label>
+          <label class="check" id="frm-field"><input type="checkbox" id="frm"> Frame-rate modulation</label>
         </div>
         <p class="note" id="screen-note"></p>
         <h2 style="margin-top: 18px">Flash</h2>
@@ -230,6 +233,8 @@
             <span id="preview-dither">
               <label class="slide">Cutoff <input type="range" id="preview-cutoff" min="0" max="100" step="5" value="30"><output id="preview-cutoff-out" for="preview-cutoff">30%</output></label>
               This OLED’s pixels are only on or off, with no shades between, so a grey is drawn by lighting a share of its dots (dithering). The faintest greys light so few that they read as speckle; shades below the cutoff stay dark instead.
+              <label class="check"><input type="checkbox" id="preview-frm"> Frame-rate modulation</label>
+              <span id="frm-note">Frame-rate modulation rewrites the screen as fast as it goes and lights a grey dot in only some of the passes, so it is lit part of the time as well: smoother greys, shown here as the eye averages them. Over SPI that holds steady; over I²C it shimmers, which some find fine and some don’t. A switch in Home Assistant turns it on and off.</span>
             </span>
           </figcaption></figure>
       </div>
@@ -242,7 +247,7 @@
 
   <script src="gif.js"></script>
   <script>
-    var VERSION = 'v1.3.0';
+    var VERSION = 'v1.4.0';
     var $ = function (id) { return document.getElementById(id); };
     var still = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (still.matches) document.querySelector('.window img').src = 'previews/movie8_f.png';
@@ -383,7 +388,7 @@
     function update() {
       var scr = SCREENS[$('screen').value];
       $('screen-note').textContent = scr.note + (scr.kind === 'mono' ? ' An OLED’s pixels are only on or off, with no shades between, so greys are dithered: a share of the dots lit. The faintest read as speckle, so shades below the cutoff stay dark. Open a clip to see it.' : '');
-      $('cutoff-field').hidden = scr.kind !== 'mono';
+      $('cutoff-field').hidden = $('frm-field').hidden = scr.kind !== 'mono';
       var names = picked();
       var clips = names.reduce(function (t, n) { return t + data.clips[n].bytes; }, 0);
       var base = data.base[$('board').value][scr.kind] + 12 * 1024;  // and the player
@@ -420,6 +425,7 @@
         y += '  clip: ' + (names.length > 1 ? 'cycle            # each in turn, or name one' : names[0]) + '\n';
         if ($('aspect').value !== 'auto') y += '  aspect: ' + $('aspect').value + '\n';
         if (scr.kind === 'mono') y += '  cutoff: ' + $('cutoff').value + '%                  # shades dimmer than this stay dark\n';
+        if (scr.kind === 'mono' && $('frm').checked) y += '  frame_rate_modulation: true    # greys by flicker as well (the switch below)\n';
         if (names.some(function (n) { return data.clips[n].kind === 'meter'; })) {
           y += '  # The meters bounce to made-up music; to show something real instead:\n' +
             '  # meter:\n  #   sensor: house_power     # any sensor, e.g. the homeassistant one below\n' +
@@ -430,7 +436,10 @@
       }
       y += '\nselect:\n  - platform: oel\n    name: Dashboard clip\n' +
         '  - platform: oel\n    type: aspect\n    name: Dashboard clip aspect\n';
-      if (scr.kind === 'mono') y += '\nnumber:                          # the cutoff, as a slider\n  - platform: oel\n    name: Dashboard clip cutoff\n';
+      if (scr.kind === 'mono') {
+        y += '\nnumber:                          # the cutoff, as a slider\n  - platform: oel\n    name: Dashboard clip cutoff\n' +
+          '\nswitch:                          # frame-rate modulation, on and off\n  - platform: oel\n    name: Dashboard clip shading\n';
+      }
       if (names.some(function (n) { return data.clips[n].kind === 'meter'; })) {
         y += '\n# sensor:\n#   - platform: homeassistant\n#     id: house_power\n#     entity_id: sensor.house_power\n';
       }
@@ -443,7 +452,9 @@
        of the dots it covers; scaled up on the TFT, a dot 3 pixels or more each
        way has a gap after it. On the OLED each colour lights its share of
        dots through a 4x4 Bayer matrix, and shades dimmer than the cutoff stay
-       dark. */
+       dark. With frame-rate modulation a dot is lit in as many of the
+       subframes as a dither with that many more levels says, and shows as
+       the share it is lit in. */
     var BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
     var play = { raf: 0, clip: null, start: 0, last: 0, frames: null, index: null, rgb: null, token: 0 };
 
@@ -632,16 +643,19 @@
     function drawOled(c, dots, u) {
       var cv = $('preview-oled'), L = layout(c, cv.width, cv.height, true, u), w = c.width, cut = +$('cutoff').value;
       var mono = c.levels.map(function (l) { return l * 100 < cut * 16 ? 0 : l; });
+      var subs = $('frm').checked ? 2 : 1;
       paint(cv, function (d, sw) {
         for (var j = 0; j < L.vh; j++) {
           var py = L.vy + j;
           for (var q = 0; q < L.vw; q++) {
-            var px = L.vx + q, sum = 0, n = 0;
+            var px = L.vx + q, sum = 0, n = 0, lit = 0;
             for (var yy = L.rows.a[j]; yy < L.rows.b[j]; yy++)
               for (var xx = L.cols.a[q]; xx < L.cols.b[q]; xx++) { sum += mono[dots[yy * w + xx]]; n++; }
-            if (sum > BAYER[py & 3][px & 3] * n) {
+            var v = subs * sum - BAYER[py & 3][px & 3] * n;
+            if (v > 0) lit = Math.min(subs, Math.ceil(v / (16 * n)));
+            if (lit) {
               var o = (py * sw + px) * 4;
-              d[o] = d[o + 1] = d[o + 2] = 255;
+              d[o] = d[o + 1] = d[o + 2] = Math.round(255 * lit / subs);
             }
           }
         }
@@ -696,6 +710,12 @@
       $(id).addEventListener('input', function () { setCutoff(this.value); });
     });
     $('cutoff').addEventListener('change', update);
+    ['frm', 'preview-frm'].forEach(function (id) {
+      $(id).addEventListener('change', function () {
+        $('frm').checked = $('preview-frm').checked = this.checked;
+        update();
+      });
+    });
     Array.prototype.forEach.call(document.querySelectorAll('.aspects .chip'), function (b) {
       b.addEventListener('click', function () { setAspect(this.dataset.aspect); update(); });
     });

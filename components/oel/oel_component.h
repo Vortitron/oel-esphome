@@ -82,10 +82,12 @@ class OelComponent : public Component {
   void set_cutoff(int percent);
   int get_cutoff() const { return cutoff_; }
   /* Frame-rate modulation on a 1-bit panel: 2-4 subframes (1 is off). The
-     display is then rewritten as fast as it goes; it wants SPI, as I2C
-     flickers. */
+     display is then rewritten as fast as it goes: over SPI the shades hold
+     steady, over I2C (about 25 subframes a second at 800kHz) they shimmer. */
   void set_frame_rate_modulation(int subframes);
   int get_frame_rate_modulation() const { return subframes_; }
+  /* How many subframes it uses when on (what the YAML asked for, or 2). */
+  int frame_rate_modulation_when_on() const { return subframes_on_; }
   /* What drives the meters (in the units of min and max), instead of the
      made-up music; and which bank of their frames to show. */
   void set_meter_source(std::function<float()> &&f, float min, float max, int bank) {
@@ -129,7 +131,7 @@ class OelComponent : public Component {
   ::oelcore::Aspect aspect_{::oelcore::AUTO};
   std::string aspect_name_{"auto"};
   int cutoff_{30};
-  int subframes_{1};
+  int subframes_{1}, subframes_on_{2};
   uint32_t sent_{0}, rate_ms_{0};
   CallbackManager<void(const std::string &)> aspect_callback_;
   std::function<float()> meter_source_;

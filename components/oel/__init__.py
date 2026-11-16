@@ -13,7 +13,7 @@
       mode: always                   # or screensaver: oel.start / oel.stop
       aspect: auto                   # letterbox, crop (panned) or stretch
       cutoff: 30%                    # 1-bit panels: shades dimmer than this stay dark
-      frame_rate_modulation: false   # 1-bit panels: true (2 subframes) or 2-4; wants SPI
+      frame_rate_modulation: false   # 1-bit panels: true (2 subframes) or 2-4, see below
       meter:                         # drive the level meters (default: made-up music)
         sensor: house_power          # any sensor (a homeassistant one for an entity)
         min: 0                       # the value that reads as empty
@@ -28,12 +28,22 @@
       - platform: oel
         name: Dashboard clip cutoff
 
+    switch:                          # frame-rate modulation, on and off
+      - platform: oel
+        name: Dashboard clip shading
+
 Clips named from the catalogue are fetched from carozerra
 (https://github.com/youxufkhan/carozerra) at a fixed commit when the firmware
 is built, and kept in ESPHome's cache after that; if carozerra can't be
 reached, from our fork of it (https://github.com/Vortitron/carozerra). Each is turned into
 palette-indexed frames compressed one by one (see lkd.py), which the player
 unpacks a frame at a time with the ESP32's ROM inflate.
+
+Frame-rate modulation gives a 1-bit panel shades it can't otherwise show: the
+screen is rewritten as fast as it goes, a grey dot lit in only some of the
+passes, so it is lit part of the time as well as a grey area having a share
+of its dots lit. Over SPI it holds steady; over I2C it shimmers, which
+some find fine and some don't, hence the switch.
 
 In mode: always the display should have no lambda or pages; in screensaver
 mode it keeps them, and oel.start and oel.stop hand the screen over and back.

@@ -82,9 +82,9 @@ class Player {
      faint speckle of the dim greys. Takes effect at the next redraw(). */
   void set_cutoff(int percent);
   /* Frame-rate modulation on a 1-bit panel: 2-4 subframes, each a call to
-     frame() drawn whole with the dither shifted on, so a shade is lit for a
-     share of the time as well as of its dots; 1 is off. Wants a screen
-     written well over 100 times a second (SPI), or it flickers. */
+     frame() drawn whole, a dot lit in some of them, so a shade is lit for a
+     share of the time as well as of its dots; 1 is off. Steady with the
+     screen written over 100 times a second (SPI); below that it shimmers. */
   void set_subframes(int n) {
     subframes_ = n < 1 ? 1 : n > 4 ? 4 : n;
     phase_ = 0;

@@ -87,6 +87,10 @@ void OelComponent::set_cutoff(int percent) {
 
 void OelComponent::set_frame_rate_modulation(int subframes) {
   subframes_ = subframes < 1 ? 1 : subframes > 4 ? 4 : subframes;
+  if (subframes_ > 1)
+    subframes_on_ = subframes_;
+  sent_ = 0;
+  rate_ms_ = millis();
   if (!player_ || !playing_)
     return;
   player_->set_subframes(subframes_);

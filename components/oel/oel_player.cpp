@@ -21,6 +21,19 @@ namespace {
 
 const uint8_t BAYER[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
 
+/* Whether a 1-bit dot is lit, its shade q/n sixteenths and b its place in
+   the matrix. Plain, that is q > b*n. Over several subframes it is an
+   ordered dither with subframes+1 levels (how many subframes the dot is lit
+   in), so the greys spread as evenly as the plain ones do; which subframes
+   go round by b, so each lights about as many dots as the next. */
+static inline bool lit(int q, int n, int b, int subframes, int phase) {
+  int v = subframes * q - b * n;
+  if (v <= 0)
+    return false;
+  int count = (v + 16 * n - 1) / (16 * n);
+  return (phase + b) % subframes < count;
+}
+
 uint32_t u32(const uint8_t *p) { return p[0] | p[1] << 8 | p[2] << 16 | (uint32_t) p[3] << 24; }
 int u16(const uint8_t *p) { return p[0] | p[1] << 8; }
 
@@ -226,8 +239,6 @@ static int prev_index(const uint8_t *buf, int bits, size_t i) {
    of several. Runs of one changed colour along a row go as one rectangle. */
 void Player::draw_(Canvas &c, bool all) {
   const int w = head_.width;
-  /* This subframe's turn of the dither (frame-rate modulation). */
-  const int shift = subframes_ > 1 ? phase_ * 16 / subframes_ : 0;
   for (int j = 0; j < vh_; j++) {
     const Span &r = rows_[j];
     const int py = vy_ + j;
@@ -245,7 +256,7 @@ void Player::draw_(Canvas &c, bool all) {
           int k = index_at_(col.a, r.a);
           changed = all || !have_prev_ || prev_index(prev_, head_.bits, (size_t) r.a * w + col.a) != k;
           if (mono_panel_) {
-            rgb = mono_[k] > ((BAYER[py & 3][px & 3] + shift) & 15) ? 0xFFFFFF : 0;
+            rgb = lit(mono_[k], 1, BAYER[py & 3][px & 3], subframes_, phase_) ? 0xFFFFFF : 0;
           } else {
             rgb = colour_(k);
           }
@@ -263,7 +274,7 @@ void Player::draw_(Canvas &c, bool all) {
             }
           changed = true;
           if (mono_panel_)
-            rgb = lv > ((BAYER[py & 3][px & 3] + shift) & 15) * n ? 0xFFFFFF : 0;
+            rgb = lit(lv, n, BAYER[py & 3][px & 3], subframes_, phase_) ? 0xFFFFFF : 0;
           else
             rgb = (uint32_t) (rr / n) << 16 | (gg / n) << 8 | (bb / n);
         }
@@ -321,7 +332,7 @@ void Player::frame(Canvas &c, float dt) {
   if (!cur_)
     return;
   /* Frame-rate modulation: every call is a subframe, drawn whole with the
-     dither shifted on, so a shade is the share of time its dots are lit. */
+     next subframe's dots lit, so a shade is lit for a share of the time. */
   const bool flicker = mono_panel_ && subframes_ > 1;
   if (flicker)
     phase_ = (phase_ + 1) % subframes_;

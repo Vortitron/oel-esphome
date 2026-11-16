@@ -2,13 +2,13 @@
  "commit": "d9602015196a92c1bfabcd1cd2f13c50e0c9cb9a",
  "base": {
   "esp32c3": {
-   "mono": 779257,
+   "mono": 780937,
    "colour": 830899,
    "grey": 782414
   },
   "esp32s3": {
    "colour": 763114,
-   "mono": 715536,
+   "mono": 717216,
    "grey": 718693
   }
  },

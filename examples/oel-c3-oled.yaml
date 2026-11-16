@@ -13,7 +13,7 @@ esp32:
     type: esp-idf
 
 external_components:
-  - source: github://Vortitron/oel-esphome@v1.3.0
+  - source: github://Vortitron/oel-esphome@v1.4.0
     components: [oel]
   # Or from a checkout of this repository:
   # - source:
@@ -52,6 +52,7 @@ oel:
   clip: cycle
   aspect: auto                 # or letterbox, crop (panned), stretch
   cutoff: 30%                  # shades dimmer than this stay dark, not speckled
+  frame_rate_modulation: false # true: smoother greys by flicker (see the switch)
   # The meter bounces to made-up music; to show something real instead:
   # meter:
   #   sensor: house_power      # a sensor, e.g. a homeassistant one
@@ -68,3 +69,7 @@ select:
 number:
   - platform: oel              # the cutoff, as a slider
     name: Dashboard clip cutoff
+
+switch:
+  - platform: oel              # frame-rate modulation, on and off
+    name: Dashboard clip shading

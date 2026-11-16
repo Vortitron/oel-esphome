@@ -10,7 +10,7 @@ copy a config. Or add the component yourself:
 
 ```yaml
 external_components:
-  - source: github://Vortitron/oel-esphome@v1.3.0
+  - source: github://Vortitron/oel-esphome@v1.4.0
     components: [oel]
 
 oel:
@@ -123,6 +123,28 @@ number:
 
 The builder's 1-bit preview has the same slider.
 
+`frame_rate_modulation: true` gives a 1-bit panel smoother greys. The
+screen is rewritten as fast as it will go, a grey dot lit in only some of
+the passes, so it is lit for part of the time as well as a grey area having
+a share of its dots lit; the eye averages the two. `true` is two
+subframes; 3 or 4 make finer steps but flicker more. Over SPI it holds
+steady. Over I²C a 128×64 SSD1306 at 800 kHz manages about 25 subframes a
+second, so it shimmers; some find that fine and some don't. A switch turns it
+on and off from Home Assistant (it starts as the YAML says, then keeps what
+you last chose):
+
+```yaml
+switch:
+  - platform: oel
+    name: Dashboard clip shading
+```
+
+For I²C, raise the bus as far as the panel takes it (`frequency: 800kHz` on
+the `i2c:` block; many SSD1306s cope, though it's beyond their rating). The
+log reports the subframe rate every 10 s. While it runs, sending frames
+takes most of the main loop's time, so the device's other components get
+less of it. The builder's preview shows the averaged look.
+
 ### Real meters
 
 The level meters bounce to made-up music unless `meter:` gives them
@@ -187,6 +209,7 @@ oel:
   mode: always           # or screensaver
   aspect: auto           # letterbox, crop or stretch
   cutoff: 30%            # 1-bit panels: shades dimmer than this stay dark
+  frame_rate_modulation: false  # 1-bit panels: true (2 subframes) or 2-4
   meter: {...}           # drive the meters (see Real meters)
 ```
 
@@ -214,6 +237,10 @@ select:
 number:
   - platform: oel              # the 1-bit cutoff, 0-100%
     name: Dashboard clip cutoff
+
+switch:
+  - platform: oel              # 1-bit frame-rate modulation
+    name: Dashboard clip shading
 ```
 
 ## Layout
@@ -221,11 +248,11 @@ number:
 - `components/oel/`: the component. `lkd.py` turns an `.lkd` into the blob
   the player takes (palette, then a compressed frame each; see its
   docstring). `oel_player.*` plays a blob onto a `Canvas` and knows nothing of
-  ESPHome; `oel_component.*`, `__init__.py`, `select.py` and `number.py` are the
-  ESPHome end.
+  ESPHome; `oel_component.*`, `__init__.py`, `select.py`, `number.py` and `switch.py`
+  are the ESPHome end.
 - `host/`: the player on the desktop (`make -C host`), writing frames as
   PPM: `host/render CLIP.oel 128x64m 200 OUTDIR` (`OEL_ASPECT`,
-  `OEL_CUTOFF` and `OEL_LEVEL=sweep` in the environment).
+  `OEL_CUTOFF`, `OEL_FRM` and `OEL_LEVEL=sweep` in the environment).
 - `tools/previews.py`: the builder's catalogue (`docs/clips.json`) and its
   previews, each clip played through `host/render`.
 - `docs/`: the builder (GitHub Pages).
