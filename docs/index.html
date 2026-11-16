@@ -105,13 +105,16 @@
     /* ---- the preview ---- */
     .modal { position: fixed; inset: 0; background: #000000c0; display: grid; place-items: center; padding: 16px; z-index: 10; }
     .modal[hidden] { display: none; }
-    .sheet { width: min(760px, 100%); background: var(--plate); border: 1px solid var(--edge); border-radius: 12px; padding: 18px; display: grid; gap: 12px; max-height: 100%; overflow: auto; }
+    .sheet { width: min(860px, 100%); background: var(--plate); border: 1px solid var(--edge); border-radius: 12px; padding: 18px; display: grid; gap: 12px; max-height: 100%; overflow: auto; }
     .sheet h3 { margin: 0; font: 700 1.3rem var(--display); letter-spacing: .06em; }
     .sheet figure { margin: 0; display: grid; gap: 6px; }
     .sheet figure div { background: #000; border-radius: 6px; padding: 10px; display: grid; place-items: center; }
     .sheet figure img { image-rendering: pixelated; max-width: 100%; height: auto; }
     .sheet figcaption { font-size: 12px; color: var(--ink-2); }
     .sheet canvas { image-rendering: pixelated; max-width: 100%; height: auto; }
+    .screens { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+    .screens figure div { min-height: 140px; }
+    .aspects { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
     label.field[hidden] { display: none; }
     .fields > *, label.field > * { min-width: 0; }
     .slide { display: flex; align-items: center; gap: 10px; }
@@ -206,10 +209,22 @@
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="preview-title">
       <h3 id="preview-title"></h3>
       <figure><div><img id="preview-native" alt=""></div><figcaption id="preview-native-note"></figcaption></figure>
-      <figure id="preview-oled-fig"><div><canvas id="preview-oled" width="128" height="64" role="img"></canvas></div>
-        <figcaption><span id="preview-oled-note">As a 128 × 64 OLED shows it.</span>
-          <label class="slide">Cutoff <input type="range" id="preview-cutoff" min="0" max="100" step="5" value="30"><output id="preview-cutoff-out" for="preview-cutoff">30%</output></label>
-        </figcaption></figure>
+      <div class="aspects" role="group" aria-label="Aspect">
+        <span>Aspect</span>
+        <button type="button" class="chip" data-aspect="auto">Auto</button>
+        <button type="button" class="chip" data-aspect="letterbox">Letterbox</button>
+        <button type="button" class="chip" data-aspect="crop">Crop</button>
+        <button type="button" class="chip" data-aspect="stretch">Stretch</button>
+      </div>
+      <div class="screens">
+        <figure><div><canvas id="preview-tft" width="320" height="240" role="img"></canvas></div>
+          <figcaption>As a 320 × 240 colour TFT shows it.</figcaption></figure>
+        <figure><div><canvas id="preview-oled" width="128" height="64" role="img"></canvas></div>
+          <figcaption><span id="preview-oled-note">As a 128 × 64 OLED shows it.</span>
+            <label class="slide">Cutoff <input type="range" id="preview-cutoff" min="0" max="100" step="5" value="30"><output id="preview-cutoff-out" for="preview-cutoff">30%</output></label>
+            An OLED’s pixels are only on or off, with no shades between, so a grey is drawn by lighting a share of its dots (dithering). The faintest greys light so few that they read as speckle; shades below the cutoff stay dark instead.
+          </figcaption></figure>
+      </div>
       <div class="acts">
         <label class="pick"><input type="checkbox" id="preview-pick"> In the build</label>
         <button class="btn go" id="preview-close" type="button">Close</button>
@@ -219,7 +234,7 @@
 
   <script src="gif.js"></script>
   <script>
-    var VERSION = 'v1.2.0';
+    var VERSION = 'v1.2.1';
     var $ = function (id) { return document.getElementById(id); };
     var still = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (still.matches) document.querySelector('.window img').src = 'previews/movie8_f.png';
@@ -352,7 +367,7 @@
 
     function update() {
       var scr = SCREENS[$('screen').value];
-      $('screen-note').textContent = scr.note + (scr.kind === 'mono' ? ' Shades dimmer than the cutoff stay dark instead of speckling; open a clip to see it.' : '');
+      $('screen-note').textContent = scr.note + (scr.kind === 'mono' ? ' An OLED’s pixels are only on or off, with no shades between, so greys are dithered: a share of the dots lit. The faintest read as speckle, so shades below the cutoff stay dark. Open a clip to see it.' : '');
       $('cutoff-field').hidden = scr.kind !== 'mono';
       var names = picked();
       var clips = names.reduce(function (t, n) { return t + data.clips[n].bytes; }, 0);
@@ -407,12 +422,15 @@
       return y;
     }
 
-    /* The 1-bit preview, played from the recorded GIF as the player draws
-       it (oel_player.cpp): laid out by the aspect, the dots each pixel covers
-       averaged, each colour lighting its share of dots through a 4x4 Bayer
-       matrix, and shades dimmer than the cutoff left dark. */
+    /* The previews on the two kinds of screen, played from the recorded GIF
+       as the player draws them (oel_player.cpp): laid out by the aspect, what
+       is cropped panning there and back. Scaled down, a pixel is the average
+       of the dots it covers; scaled up on the TFT, a dot 3 pixels or more each
+       way has a gap after it. On the OLED each colour lights its share of
+       dots through a 4x4 Bayer matrix, and shades dimmer than the cutoff stay
+       dark. */
     var BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
-    var oled = { raf: 0, clip: null, start: 0, last: 0, frames: null, index: null, token: 0 };
+    var play = { raf: 0, clip: null, start: 0, last: 0, frames: null, index: null, rgb: null, token: 0 };
 
     function setCutoff(v) {
       ['cutoff', 'preview-cutoff'].forEach(function (id) {
@@ -421,8 +439,17 @@
       });
     }
 
-    function spans(n, offset, scale, size) {
-      var a = new Int16Array(n), b = new Int16Array(n);
+    function setAspect(a) {
+      $('aspect').value = a;
+      Array.prototype.forEach.call(document.querySelectorAll('.aspects .chip'), function (b) {
+        b.setAttribute('aria-pressed', b.dataset.aspect === a ? 'true' : 'false');
+      });
+    }
+
+    /* For each screen column (or row): the dots it shows, first and one past
+       the last, and whether it is the gap after a dot. */
+    function spans(n, offset, scale, size, gap) {
+      var a = new Int16Array(n), b = new Int16Array(n), g = new Uint8Array(n);
       for (var i = 0; i < n; i++) {
         var lo, hi;
         if (scale >= 1) {
@@ -435,8 +462,23 @@
         }
         a[i] = Math.min(lo, size - 1);
         b[i] = Math.min(hi, size);
+        if (gap) g[i] = Math.floor((i + 1 + offset + 0.5) / scale) !== a[i] ? 1 : 0;
       }
-      return { a: a, b: b };
+      return { a: a, b: b, gap: g };
+    }
+
+    /* Where the clip goes on a screen sw x sh, u of the way along its pan. */
+    function layout(c, sw, sh, mono, u) {
+      var w = c.width, h = c.height, sx, sy;
+      var fit = Math.min(sw / w, sh / h), fill = Math.max(sw / w, sh / h), a = $('aspect').value;
+      if (a === 'auto') a = fit < 1 && sh >= h ? 'crop' : 'letterbox';
+      if (a === 'stretch') { sx = sw / w; sy = sh / h; } else { sx = sy = a === 'crop' ? fill : fit; }
+      var fw = Math.max(1, Math.round(w * sx)), fh = Math.max(1, Math.round(h * sy));
+      var vw = Math.min(fw, sw), vh = Math.min(fh, sh), gap = !mono && sx >= 3 && sy >= 3;
+      return {
+        vx: (sw - vw) >> 1, vy: (sh - vh) >> 1, vw: vw, vh: vh,
+        cols: spans(vw, Math.round((fw - vw) * u), sx, w, gap), rows: spans(vh, Math.round((fh - vh) * u), sy, h, gap)
+      };
     }
 
     function oledScreen() {
@@ -444,24 +486,27 @@
       return scr.kind === 'mono' ? scr : { w: 128, h: 64 };
     }
 
-    function startOled(c) {
-      var scr = oledScreen(), cv = $('preview-oled'), scale = Math.max(1, Math.floor(384 / scr.w));
+    function startPreview(c) {
+      var scr = oledScreen(), cv = $('preview-oled');
       cv.width = scr.w;
       cv.height = scr.h;
-      cv.style.width = scr.w * scale + 'px';
+      cv.style.width = scr.w * Math.max(1, Math.floor(384 / scr.w)) + 'px';
       cv.setAttribute('aria-label', c.title + ' on a ' + scr.w + ' by ' + scr.h + ' OLED');
+      $('preview-tft').setAttribute('aria-label', c.title + ' on a 320 by 240 colour screen');
       $('preview-oled-note').textContent = 'As a ' + scr.w + ' × ' + scr.h + ' OLED shows it.';
-      cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
-      oled.clip = c;
-      oled.index = {};
-      oled.frames = null;
-      cancelAnimationFrame(oled.raf);
-      var token = ++oled.token, name = previewing;
+      ['preview-tft', 'preview-oled'].forEach(function (id) { $(id).getContext('2d').clearRect(0, 0, 9999, 9999); });
+      setAspect($('aspect').value);
+      play.clip = c;
+      play.index = {};
+      play.frames = null;
+      play.rgb = c.palette.map(function (hex) { return parseInt(hex, 16); });
+      cancelAnimationFrame(play.raf);
+      var token = ++play.token, name = previewing;
       function ready(frames) {
-        if (token !== oled.token) return;  // another clip opened since
-        oled.frames = frames;
-        oled.start = oled.last = 0;
-        oled.raf = requestAnimationFrame(drawOled);
+        if (token !== play.token) return;  // another clip opened since
+        play.frames = frames;
+        play.start = play.last = 0;
+        play.raf = requestAnimationFrame(tick);
       }
       /* Each frame as palette indices, with when it ends. */
       function indices(rgb) {
@@ -493,7 +538,7 @@
     /* The palette entry for a pixel of the GIF (they are the palette's own
        colours; the nearest, should one not be). */
     function paletteIndex(c, rgb) {
-      var k = oled.index[rgb];
+      var k = play.index[rgb];
       if (k !== undefined) return k;
       var best = 1e9;
       c.palette.forEach(function (hex, i) {
@@ -501,46 +546,80 @@
         var d = dr * dr + dg * dg + db * db;
         if (d < best) { best = d; k = i; }
       });
-      return (oled.index[rgb] = k);
+      return (play.index[rgb] = k);
     }
 
-    function drawOled(now) {
-      oled.raf = requestAnimationFrame(drawOled);
-      if (!oled.start) oled.start = now;
-      if (now - oled.last < 30) return;
-      oled.last = now;
-      var c = oled.clip, frames = oled.frames, w = c.width, h = c.height, cut = +$('cutoff').value;
-      var at = (now - oled.start) % frames[frames.length - 1].until, f = 0;
+    function tick(now) {
+      play.raf = requestAnimationFrame(tick);
+      if (!play.start) play.start = now;
+      if (now - play.last < 30) return;
+      play.last = now;
+      drawScreens(now - play.start);
+    }
+
+    /* Both screens, t ms into the clip. */
+    function drawScreens(t) {
+      var c = play.clip, frames = play.frames;
+      if (!c || !frames) return;
+      var at = t % frames[frames.length - 1].until, f = 0;
       while (frames[f].until <= at) f++;
-      var mono = c.levels.map(function (l) { return l * 100 < cut * 16 ? 0 : l; });
-      var dots = frames[f].dots, lv = new Uint8Array(w * h);
-      for (var i = 0; i < w * h; i++) lv[i] = mono[dots[i]];
+      /* About ten seconds each way. */
+      var u = 0.5 - 0.5 * Math.cos((t / 20000 % 1) * 2 * Math.PI);
+      drawTft(c, frames[f].dots, u);
+      drawOled(c, frames[f].dots, u);
+    }
 
-      var cv = $('preview-oled'), sw = cv.width, sh = cv.height;
-      var fit = Math.min(sw / w, sh / h), fill = Math.max(sw / w, sh / h), a = $('aspect').value, sx, sy;
-      if (a === 'auto') a = fit < 1 && sh >= h ? 'crop' : 'letterbox';
-      if (a === 'stretch') { sx = sw / w; sy = sh / h; } else { sx = sy = a === 'crop' ? fill : fit; }
-      var fw = Math.max(1, Math.round(w * sx)), fh = Math.max(1, Math.round(h * sy));
-      var vw = Math.min(fw, sw), vh = Math.min(fh, sh), vx = (sw - vw) >> 1, vy = (sh - vh) >> 1;
-      /* What is cropped pans there and back, about ten seconds each way. */
-      var u = 0.5 - 0.5 * Math.cos(((now - oled.start) / 20000 % 1) * 2 * Math.PI);
-      var cols = spans(vw, Math.round((fw - vw) * u), sx, w), rows = spans(vh, Math.round((fh - vh) * u), sy, h);
+    function paint(cv, fn) {
+      var ctx = cv.getContext('2d'), out = ctx.createImageData(cv.width, cv.height), d = out.data;
+      for (var t = 3; t < d.length; t += 4) d[t] = 255;
+      fn(d, cv.width);
+      ctx.putImageData(out, 0, 0);
+    }
 
-      var ctx = cv.getContext('2d'), out = ctx.createImageData(sw, sh), d = out.data;
-      for (var j = 0; j < vh; j++) {
-        var py = vy + j;
-        for (var q = 0; q < vw; q++) {
-          var pxx = vx + q, sum = 0, n = 0;
-          for (var yy = rows.a[j]; yy < rows.b[j]; yy++)
-            for (var xx = cols.a[q]; xx < cols.b[q]; xx++) { sum += lv[yy * w + xx]; n++; }
-          if (sum > BAYER[py & 3][pxx & 3] * n) {
-            var at = (py * sw + pxx) * 4;
-            d[at] = d[at + 1] = d[at + 2] = 255;
+    function drawTft(c, dots, u) {
+      var cv = $('preview-tft'), L = layout(c, cv.width, cv.height, false, u), w = c.width, pal = play.rgb;
+      paint(cv, function (d, sw) {
+        for (var j = 0; j < L.vh; j++) {
+          var r0 = L.rows.a[j], r1 = L.rows.b[j];
+          if (L.rows.gap[j]) continue;
+          for (var q = 0; q < L.vw; q++) {
+            if (L.cols.gap[q]) continue;
+            var c0 = L.cols.a[q], c1 = L.cols.b[q], rgb;
+            if (c1 - c0 <= 1 && r1 - r0 <= 1) {
+              rgb = pal[dots[r0 * w + c0]];
+            } else {
+              var rr = 0, gg = 0, bb = 0, n = 0;
+              for (var yy = r0; yy < r1; yy++)
+                for (var xx = c0; xx < c1; xx++) {
+                  var p = pal[dots[yy * w + xx]];
+                  rr += p >> 16; gg += p >> 8 & 255; bb += p & 255; n++;
+                }
+              rgb = (rr / n | 0) << 16 | (gg / n | 0) << 8 | (bb / n | 0);
+            }
+            var o = ((L.vy + j) * sw + L.vx + q) * 4;
+            d[o] = rgb >> 16; d[o + 1] = rgb >> 8 & 255; d[o + 2] = rgb & 255;
           }
         }
-      }
-      for (var t = 3; t < d.length; t += 4) d[t] = 255;
-      ctx.putImageData(out, 0, 0);
+      });
+    }
+
+    function drawOled(c, dots, u) {
+      var cv = $('preview-oled'), L = layout(c, cv.width, cv.height, true, u), w = c.width, cut = +$('cutoff').value;
+      var mono = c.levels.map(function (l) { return l * 100 < cut * 16 ? 0 : l; });
+      paint(cv, function (d, sw) {
+        for (var j = 0; j < L.vh; j++) {
+          var py = L.vy + j;
+          for (var q = 0; q < L.vw; q++) {
+            var px = L.vx + q, sum = 0, n = 0;
+            for (var yy = L.rows.a[j]; yy < L.rows.b[j]; yy++)
+              for (var xx = L.cols.a[q]; xx < L.cols.b[q]; xx++) { sum += mono[dots[yy * w + xx]]; n++; }
+            if (sum > BAYER[py & 3][px & 3] * n) {
+              var o = (py * sw + px) * 4;
+              d[o] = d[o + 1] = d[o + 2] = 255;
+            }
+          }
+        }
+      });
     }
 
     function openPreview(name) {
@@ -554,7 +633,7 @@
       native.height = c.height * scale;
       native.alt = c.title + ', as recorded';
       $('preview-native-note').textContent = 'As recorded: ' + facts(c) + ', ' + c.colours + ' colours. ' + kb(c.bytes) + ' of flash.';
-      startOled(c);
+      startPreview(c);
       $('preview-pick').checked = !!chosen[name];
       $('preview').hidden = false;
       $('preview-close').focus();
@@ -563,8 +642,8 @@
       if ($('preview').hidden) return;
       $('preview').hidden = true;
       $('preview-native').removeAttribute('src');
-      cancelAnimationFrame(oled.raf);
-      oled.token++;
+      cancelAnimationFrame(play.raf);
+      play.token++;
       previewing = null;
       if (lastFocus) lastFocus.focus();
     }
@@ -591,6 +670,10 @@
       $(id).addEventListener('input', function () { setCutoff(this.value); });
     });
     $('cutoff').addEventListener('change', update);
+    Array.prototype.forEach.call(document.querySelectorAll('.aspects .chip'), function (b) {
+      b.addEventListener('click', function () { setAspect(this.dataset.aspect); update(); });
+    });
+    $('aspect').addEventListener('change', function () { setAspect(this.value); });
     $('preview-cutoff').addEventListener('change', update);
 
     fetch('clips.json').then(function (r) { return r.json(); }).then(function (d) {

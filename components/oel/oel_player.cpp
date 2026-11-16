@@ -148,8 +148,7 @@ bool Player::layout_() {
   vy_ = (sh_ - vh_) / 2;
   pan_x_ = full_w - vw_;
   pan_y_ = full_h - vh_;
-  ox_ = pan_x_ / 2;
-  oy_ = pan_y_ / 2;
+  ox_ = oy_ = 0;  // where the pan starts
   gap_ = !mono_panel_ && sx_ >= 3 && sy_ >= 3;
   free(cols_);
   free(rows_);

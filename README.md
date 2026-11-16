@@ -10,7 +10,7 @@ copy a config. Or add the component yourself:
 
 ```yaml
 external_components:
-  - source: github://Vortitron/oel-esphome@v1.2.0
+  - source: github://Vortitron/oel-esphome@v1.2.1
     components: [oel]
 
 oel:
