@@ -75,7 +75,20 @@ bool Player::begin(Canvas &c, const uint8_t *blob, size_t size) {
     return false;
 
   mono_panel_ = c.mono();
+  grey_panel_ = !mono_panel_ && c.grey();
   set_cutoff(cutoff_);
+  if (grey_panel_) {
+    /* Brightness as lkd.py weighs it, the clip's brightest at full. */
+    int lum[16], top = 1;
+    for (int k = 0; k < head_.colours && k < 16; k++) {
+      const uint8_t *p = palette_ + 3 * k;
+      lum[k] = (77 * p[0] + 150 * p[1] + 29 * p[2]) >> 8;
+      if (lum[k] > top)
+        top = lum[k];
+    }
+    for (int k = 0; k < head_.colours && k < 16; k++)
+      grey_[k] = (uint8_t) ((lum[k] * 255 + top / 2) / top);
+  }
   sw_ = c.width();
   sh_ = c.height();
   if (!layout_())
@@ -97,6 +110,13 @@ void Player::set_cutoff(int percent) {
     return;
   for (int k = 0; k < head_.colours && k < 16; k++)
     mono_[k] = levels_[k] * 100 < cutoff_ * 16 ? 0 : levels_[k];
+}
+
+uint32_t Player::colour_(int k) const {
+  if (grey_panel_)
+    return grey_[k] * 0x010101u;
+  const uint8_t *p = palette_ + 3 * k;
+  return (uint32_t) p[0] << 16 | p[1] << 8 | p[2];
 }
 
 float Player::pass_time() const {
@@ -225,18 +245,17 @@ void Player::draw_(Canvas &c, bool all) {
           if (mono_panel_) {
             rgb = mono_[k] > BAYER[py & 3][px & 3] ? 0xFFFFFF : 0;
           } else {
-            const uint8_t *p = palette_ + 3 * k;
-            rgb = (uint32_t) p[0] << 16 | p[1] << 8 | p[2];
+            rgb = colour_(k);
           }
         } else {
           int rr = 0, gg = 0, bb = 0, lv = 0, n = 0;
           for (int yy = r.a; yy < r.b; yy++)
             for (int xx = col.a; xx < col.b; xx++) {
               int k = index_at_(xx, yy);
-              const uint8_t *p = palette_ + 3 * k;
-              rr += p[0];
-              gg += p[1];
-              bb += p[2];
+              uint32_t p = colour_(k);
+              rr += p >> 16;
+              gg += p >> 8 & 255;
+              bb += p & 255;
               lv += mono_[k];
               n++;
             }

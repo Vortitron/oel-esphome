@@ -13,7 +13,7 @@ esp32:
     type: esp-idf
 
 external_components:
-  - source: github://Vortitron/oel-esphome@v1.2.1
+  - source: github://Vortitron/oel-esphome@v1.3.0
     components: [oel]
   # Or from a checkout of this repository:
   # - source:

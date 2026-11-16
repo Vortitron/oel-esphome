@@ -38,10 +38,12 @@ class DisplayCanvas : public ::oelcore::Canvas {
     width_ = d->get_width();
     height_ = d->get_height();
     mono_ = d->get_display_type() == display::DISPLAY_TYPE_BINARY;
+    grey_ = d->get_display_type() == display::DISPLAY_TYPE_GRAYSCALE;
   }
   int width() const override { return width_; }
   int height() const override { return height_; }
   bool mono() const override { return mono_; }
+  bool grey() const override { return grey_; }
   void fill(int x, int y, int w, int h, uint32_t rgb) override;
   bool take_dirty() {
     bool d = dirty_;
@@ -52,7 +54,7 @@ class DisplayCanvas : public ::oelcore::Canvas {
  protected:
   display::Display *display_{nullptr};
   int width_{0}, height_{0};
-  bool mono_{false}, dirty_{false};
+  bool mono_{false}, grey_{false}, dirty_{false};
 };
 
 struct Clip {

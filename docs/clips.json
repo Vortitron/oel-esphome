@@ -3,11 +3,13 @@
  "base": {
   "esp32c3": {
    "mono": 779257,
-   "colour": 830899
+   "colour": 830899,
+   "grey": 782414
   },
   "esp32s3": {
    "colour": 763114,
-   "mono": 715536
+   "mono": 715536,
+   "grey": 718693
   }
  },
  "app_slot": {

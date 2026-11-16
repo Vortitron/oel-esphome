@@ -29,7 +29,11 @@ class Canvas {
   virtual int height() const = 0;
   /* A 1-bit panel: each colour lights a share of its dots, dithered. */
   virtual bool mono() const { return false; }
-  /* Clipped by the caller. On a 1-bit panel rgb is 0 or 0xFFFFFF. */
+  /* A greyscale panel (an SSD1322's 16 shades): each colour is a grey by
+     its brightness, the clip's brightest at full. */
+  virtual bool grey() const { return false; }
+  /* Clipped by the caller. On a 1-bit panel rgb is 0 or 0xFFFFFF; on a
+     greyscale one, a grey (r = g = b). */
   virtual void fill(int x, int y, int w, int h, uint32_t rgb) = 0;
 };
 
@@ -85,6 +89,7 @@ class Player {
 
  private:
   bool decode_(int index, uint8_t *out);
+  uint32_t colour_(int k) const;
   struct Span {
     int16_t a, b;
     bool gap;
@@ -101,7 +106,7 @@ class Player {
   size_t size_ = 0, frame_bytes_ = 0;
   uint8_t *cur_ = nullptr, *prev_ = nullptr;
   void *inflator_ = nullptr;
-  bool mono_panel_ = false, have_prev_ = false;
+  bool mono_panel_ = false, grey_panel_ = false, have_prev_ = false;
   int sw_ = 0, sh_ = 0;
   Aspect aspect_ = AUTO;
   /* The clip's pixels on screen (x, y, width, height), its scale each way,
@@ -119,6 +124,8 @@ class Player {
   /* Each colour's share of lit dots, 0-16, after the cutoff. */
   int cutoff_ = 0;
   uint8_t mono_[16] = {};
+  /* Each colour as a grey, on a greyscale panel. */
+  uint8_t grey_[16] = {};
 };
 
 }  // namespace oelcore

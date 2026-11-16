@@ -2,10 +2,10 @@
  * render.cpp - plays a clip on the desktop as the ESP32 would, frame by frame,
  * for checking the player and making the builder's previews.
  *
- *   host/render CLIP.oel WxH[m] FRAMES OUTDIR [FPS] [SEED]
+ *   host/render CLIP.oel WxH[m|g] FRAMES OUTDIR [FPS] [SEED]
  *
  * CLIP.oel is a blob made by components/oel/lkd.py; "m" after the size makes
- * a 1-bit panel. Frames go to OUTDIR/NNNN.ppm.
+ * a 1-bit panel, "g" a greyscale one (an SSD1322). Frames go to OUTDIR/NNNN.ppm.
  *
  *   OEL_ASPECT=auto|letterbox|crop|stretch   how the clip meets the screen
  *   OEL_LEVEL=sweep                          drive a meter from a slow sine
@@ -24,10 +24,11 @@ using namespace oelcore;
 
 class HostCanvas : public Canvas {
  public:
-  HostCanvas(int w, int h, bool mono) : w_(w), h_(h), mono_(mono), rgb_(w * h * 3, 0) {}
+  HostCanvas(int w, int h, bool mono, bool grey) : w_(w), h_(h), mono_(mono), grey_(grey), rgb_(w * h * 3, 0) {}
   int width() const override { return w_; }
   int height() const override { return h_; }
   bool mono() const override { return mono_; }
+  bool grey() const override { return grey_; }
   void fill(int x, int y, int w, int h, uint32_t c) override {
     for (int j = y; j < y + h; j++)
       for (int i = x; i < x + w; i++) {
@@ -50,13 +51,13 @@ class HostCanvas : public Canvas {
 
  private:
   int w_, h_;
-  bool mono_;
+  bool mono_, grey_;
   std::vector<uint8_t> rgb_;
 };
 
 int main(int argc, char **argv) {
   if (argc < 5) {
-    fprintf(stderr, "usage: %s CLIP.oel WxH[m] FRAMES OUTDIR [FPS] [SEED]\n", argv[0]);
+    fprintf(stderr, "usage: %s CLIP.oel WxH[m|g] FRAMES OUTDIR [FPS] [SEED]\n", argv[0]);
     return 2;
   }
   FILE *f = fopen(argv[1], "rb");
@@ -72,11 +73,11 @@ int main(int argc, char **argv) {
   fclose(f);
   int w = 0, h = 0;
   sscanf(argv[2], "%dx%d", &w, &h);
-  bool mono = argv[2][strlen(argv[2]) - 1] == 'm';
+  bool mono = argv[2][strlen(argv[2]) - 1] == 'm', grey = argv[2][strlen(argv[2]) - 1] == 'g';
   int frames = atoi(argv[3]);
   float fps = argc > 5 ? atof(argv[5]) : 20;
   rng.state = argc > 6 ? strtoul(argv[6], nullptr, 10) | 1 : 1;
-  HostCanvas canvas(w, h, mono);
+  HostCanvas canvas(w, h, mono, grey);
   Player player;
   if (const char *a = getenv("OEL_ASPECT")) {
     const char *names[] = {"auto", "letterbox", "crop", "stretch"};

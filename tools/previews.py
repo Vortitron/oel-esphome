@@ -139,8 +139,10 @@ def main():
     # Firmware without clips, from real builds (ESPHome 2026.10.1, ESP-IDF, Wi-Fi + API + OTA, the
     # examples' screens): the C3 + SH1106 and S3 + ILI9341 examples, less their clips. The other two
     # pairings are moved by how after-dark-esphome's measured bases differ between colour and 1-bit.
-    base = {'esp32c3': {'mono': 779257, 'colour': 779257 + 51642},
-            'esp32s3': {'colour': 763114, 'mono': 763114 - 47578}}
+    # The SSD1322 (grey) from a build of examples/oel-c3-ssd1322.yaml less its clips and the player,
+    # moved onto the S3 as the 1-bit screen is.
+    base = {'esp32c3': {'mono': 779257, 'colour': 779257 + 51642, 'grey': 782414},
+            'esp32s3': {'colour': 763114, 'mono': 763114 - 47578, 'grey': 763114 - 47578 + (782414 - 779257)}}
     app_slot = {'4MB': 0x1C0000, '8MB': 0x3C0000, '16MB': 0x7C0000}
     report = {'commit': lkd.CAROZERRA_COMMIT, 'base': base, 'app_slot': app_slot, 'clips': clips}
     json.dump(report, open(os.path.join(OUT, 'clips.json'), 'w'), indent=1)

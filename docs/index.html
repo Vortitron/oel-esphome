@@ -114,6 +114,9 @@
     .sheet canvas { image-rendering: pixelated; max-width: 100%; height: auto; }
     .screens { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: start; }
     .screens figure div { min-height: 140px; }
+    .screens figure.wide { grid-column: 1 / -1; }
+    #preview-dither[hidden] { display: none; }
+    #preview-dither { display: grid; gap: 4px; }
     .aspects { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
     label.field[hidden] { display: none; }
     .fields > *, label.field > * { min-width: 0; }
@@ -165,6 +168,9 @@
             <select id="screen">
               <optgroup label="Colour">
                 <option value="ili9341">ILI9341, 320 × 240, SPI</option>
+              </optgroup>
+              <optgroup label="Greyscale OLED, nearest the stereos">
+                <option value="ssd1322">SSD1322, 256 × 64, SPI (3.12")</option>
               </optgroup>
               <optgroup label="1-bit OLED">
                 <option value="sh1106">SH1106, 128 × 64, I²C (1.3")</option>
@@ -219,10 +225,12 @@
       <div class="screens">
         <figure><div><canvas id="preview-tft" width="320" height="240" role="img"></canvas></div>
           <figcaption>As a 320 × 240 colour TFT shows it.</figcaption></figure>
-        <figure><div><canvas id="preview-oled" width="128" height="64" role="img"></canvas></div>
+        <figure id="preview-oled-fig"><div><canvas id="preview-oled" width="128" height="64" role="img"></canvas></div>
           <figcaption><span id="preview-oled-note">As a 128 × 64 OLED shows it.</span>
-            <label class="slide">Cutoff <input type="range" id="preview-cutoff" min="0" max="100" step="5" value="30"><output id="preview-cutoff-out" for="preview-cutoff">30%</output></label>
-            An OLED’s pixels are only on or off, with no shades between, so a grey is drawn by lighting a share of its dots (dithering). The faintest greys light so few that they read as speckle; shades below the cutoff stay dark instead.
+            <span id="preview-dither">
+              <label class="slide">Cutoff <input type="range" id="preview-cutoff" min="0" max="100" step="5" value="30"><output id="preview-cutoff-out" for="preview-cutoff">30%</output></label>
+              This OLED’s pixels are only on or off, with no shades between, so a grey is drawn by lighting a share of its dots (dithering). The faintest greys light so few that they read as speckle; shades below the cutoff stay dark instead.
+            </span>
           </figcaption></figure>
       </div>
       <div class="acts">
@@ -234,7 +242,7 @@
 
   <script src="gif.js"></script>
   <script>
-    var VERSION = 'v1.2.1';
+    var VERSION = 'v1.3.0';
     var $ = function (id) { return document.getElementById(id); };
     var still = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (still.matches) document.querySelector('.window img').src = 'previews/movie8_f.png';
@@ -250,6 +258,13 @@
             '    update_interval: never     # oel pushes the frames\n    auto_clear_enabled: false\n\n' +
             'output:\n  - platform: ledc\n    id: backlight_pwm\n    pin: ' + p.bl + '\n\n' +
             'light:\n  - platform: monochromatic\n    name: Backlight\n    output: backlight_pwm\n    restore_mode: ALWAYS_ON\n';
+        } },
+      ssd1322: { kind: 'grey', w: 256, h: 64, note: 'The movies’ own size, in 16 shades of grey: they show dot for dot and undithered, as near as you can get to the stereos’ panel. Set the module for 4-wire SPI; some come set for a parallel bus.',
+        block: function (p) {
+          return 'spi:\n  clk_pin: ' + p.clk + '\n  mosi_pin: ' + p.mosi + '\n\n' +
+            'display:\n  - platform: ssd1322_spi\n    id: screen\n    model: SSD1322 256x64\n' +
+            '    cs_pin: ' + p.cs + '\n    dc_pin: ' + p.dc + '\n    reset_pin: ' + p.rst + '\n' +
+            '    data_rate: 10MHz\n    update_interval: never     # oel pushes the frames\n    auto_clear_enabled: false\n';
         } },
       sh1106: { kind: 'mono', w: 128, h: 64, model: 'SH1106_128X64', note: 'The 256-dot movies show dot for dot and pan across; the rest are scaled and dithered.' },
       ssd1306: { kind: 'mono', w: 128, h: 64, model: 'SSD1306_128X64', note: 'The 256-dot movies show dot for dot and pan across; the rest are scaled and dithered.' },
@@ -391,7 +406,7 @@
         'esp32:\n  board: ' + b.id + '\n  flash_size: ' + $('flash').value + '\n  framework:\n    type: esp-idf\n\n' +
         'external_components:\n  - source: github://Vortitron/oel-esphome@' + VERSION + '\n    components: [oel]\n\n' +
         'logger:\n\nwifi:\n  ssid: !secret wifi_ssid\n  password: !secret wifi_password\n\napi:\nota:\n  - platform: esphome\n\n';
-      if (scr.kind === 'colour') {
+      if (scr.block) {
         y += scr.block(p);
       } else {
         y += 'i2c:\n  sda: ' + p.sda + '\n  scl: ' + p.scl + '\n  frequency: 400kHz\n\n' +
@@ -483,23 +498,32 @@
 
     function oledScreen() {
       var scr = SCREENS[$('screen').value];
-      return scr.kind === 'mono' ? scr : { w: 128, h: 64 };
+      return scr.kind !== 'colour' ? scr : { kind: 'mono', w: 128, h: 64 };
     }
 
     function startPreview(c) {
       var scr = oledScreen(), cv = $('preview-oled');
       cv.width = scr.w;
       cv.height = scr.h;
-      cv.style.width = scr.w * Math.max(1, Math.floor(384 / scr.w)) + 'px';
+      cv.style.width = scr.w * Math.max(1, Math.floor((scr.kind === 'grey' ? 512 : 384) / scr.w)) + 'px';
       cv.setAttribute('aria-label', c.title + ' on a ' + scr.w + ' by ' + scr.h + ' OLED');
       $('preview-tft').setAttribute('aria-label', c.title + ' on a 320 by 240 colour screen');
-      $('preview-oled-note').textContent = 'As a ' + scr.w + ' × ' + scr.h + ' OLED shows it.';
+      $('preview-oled-note').textContent = 'As a ' + scr.w + ' × ' + scr.h + ' OLED shows it' +
+        (scr.kind === 'grey' ? ', in its 16 shades of grey: no dithering needed.' : '.');
+      $('preview-dither').hidden = scr.kind === 'grey';
+      $('preview-oled-fig').classList.toggle('wide', scr.kind === 'grey');
+      play.grey = scr.kind === 'grey';
       ['preview-tft', 'preview-oled'].forEach(function (id) { $(id).getContext('2d').clearRect(0, 0, 9999, 9999); });
       setAspect($('aspect').value);
       play.clip = c;
       play.index = {};
       play.frames = null;
       play.rgb = c.palette.map(function (hex) { return parseInt(hex, 16); });
+      /* On a greyscale panel each colour is a grey by its brightness, the
+         clip's brightest at full (as oel_player.cpp). */
+      var lum = play.rgb.map(function (p) { return (77 * (p >> 16) + 150 * (p >> 8 & 255) + 29 * (p & 255)) >> 8; });
+      var top = Math.max.apply(null, [1].concat(lum));
+      play.greys = lum.map(function (l) { return Math.floor((l * 255 + (top >> 1)) / top) * 0x010101; });
       cancelAnimationFrame(play.raf);
       var token = ++play.token, name = previewing;
       function ready(frames) {
@@ -565,8 +589,9 @@
       while (frames[f].until <= at) f++;
       /* About ten seconds each way. */
       var u = 0.5 - 0.5 * Math.cos((t / 20000 % 1) * 2 * Math.PI);
-      drawTft(c, frames[f].dots, u);
-      drawOled(c, frames[f].dots, u);
+      drawColour($('preview-tft'), c, frames[f].dots, u, play.rgb);
+      if (play.grey) drawColour($('preview-oled'), c, frames[f].dots, u, play.greys);
+      else drawOled(c, frames[f].dots, u);
     }
 
     function paint(cv, fn) {
@@ -576,8 +601,9 @@
       ctx.putImageData(out, 0, 0);
     }
 
-    function drawTft(c, dots, u) {
-      var cv = $('preview-tft'), L = layout(c, cv.width, cv.height, false, u), w = c.width, pal = play.rgb;
+    /* A colour screen, or a greyscale one given the greys as its palette. */
+    function drawColour(cv, c, dots, u, pal) {
+      var L = layout(c, cv.width, cv.height, false, u), w = c.width;
       paint(cv, function (d, sw) {
         for (var j = 0; j < L.vh; j++) {
           var r0 = L.rows.a[j], r1 = L.rows.b[j];

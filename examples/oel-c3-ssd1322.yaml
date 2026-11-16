@@ -1,0 +1,64 @@
+# Pioneer's OEL clips on an ESP32-C3 Super Mini with a 3.12" SSD1322 256x64
+# OLED over SPI: the movies' own size, and 16 shades of grey, so they show
+# dot for dot and undithered, as near as you can get to the stereos' panel.
+# Some modules come set for a parallel bus; set yours for 4-wire SPI (the
+# seller's sheet shows which resistor to move).
+#
+#   esphome run examples/oel-c3-ssd1322.yaml
+
+esphome:
+  name: oel-ssd1322
+  friendly_name: OEL
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+external_components:
+  - source: github://Vortitron/oel-esphome@v1.3.0
+    components: [oel]
+  # Or from a checkout of this repository:
+  # - source:
+  #     type: local
+  #     path: ../components
+
+logger:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+ota:
+  - platform: esphome
+
+spi:
+  clk_pin: GPIO4               # the module's SCLK (D0)
+  mosi_pin: GPIO6              # SDIN (D1)
+
+display:
+  - platform: ssd1322_spi
+    id: screen
+    model: SSD1322 256x64
+    cs_pin: GPIO7
+    dc_pin: GPIO5
+    reset_pin: GPIO3
+    data_rate: 10MHz           # a whole frame in about 7 ms
+    update_interval: never     # oel pushes the frames
+    auto_clear_enabled: false
+
+oel:
+  display_id: screen
+  clips:
+    - movie8_f                 # dolphins underwater
+    - alt_diverdolphins        # a diver with dolphins
+    - color_02_greatbarrierreef
+  clip: cycle
+
+select:
+  - platform: oel
+    name: Dashboard clip
+  - platform: oel
+    type: aspect
+    name: Dashboard clip aspect

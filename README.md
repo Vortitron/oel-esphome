@@ -10,7 +10,7 @@ copy a config. Or add the component yourself:
 
 ```yaml
 external_components:
-  - source: github://Vortitron/oel-esphome@v1.2.1
+  - source: github://Vortitron/oel-esphome@v1.3.0
     components: [oel]
 
 oel:
@@ -58,6 +58,39 @@ Your own `.lkd` works too:
         name: other
 ```
 
+### The screen
+
+Any ESPHome pixel display works: colour, greyscale or 1-bit.
+
+The stereos' own panel was Pioneer's, 256×64 dots, and was never sold on its
+own. The nearest you can buy is a 3.12" **SSD1322 256×64 OLED** (blue,
+yellow, white or green). It is the movies' own size, with 16 shades of grey,
+so they show dot for dot with no dithering; each colour becomes a grey by its
+brightness, the clip's brightest at full. The panel is wired over 4-wire SPI
+(some modules come set for a parallel bus; the seller's sheet shows which
+resistor to move). See
+[`examples/oel-c3-ssd1322.yaml`](examples/oel-c3-ssd1322.yaml):
+
+```yaml
+spi:
+  clk_pin: GPIO4
+  mosi_pin: GPIO6
+
+display:
+  - platform: ssd1322_spi
+    id: screen
+    model: SSD1322 256x64
+    cs_pin: GPIO7
+    dc_pin: GPIO5
+    reset_pin: GPIO3
+    data_rate: 10MHz           # a whole frame in about 7 ms
+    update_interval: never
+    auto_clear_enabled: false
+```
+
+The cheap 128×64 OLEDs (SH1106, SSD1306) are 1-bit: see below for how they
+cope.
+
 ### On the screen
 
 `aspect:` sets how a clip meets the screen, and a select can change it from
@@ -74,9 +107,9 @@ Scaled up, each dot becomes a block, with a gap after it once it is 3 pixels
 or more each way, like the stereo's matrix. Scaled down, a pixel is the
 average of the dots it covers.
 
-On a 1-bit panel each shade lights a share of its dots, dithered. The faint
-ones, a quarter of their dots or fewer, come out as a speckle over the
-picture, so `cutoff:` leaves any shade dimmer than it dark. The default 30%
+A 1-bit panel's pixels are only on or off, so each shade lights a share of
+its dots, dithered. The faint ones, a quarter of their dots or fewer, come
+out as a speckle over the picture, so `cutoff:` leaves any shade dimmer than it dark. The default 30%
 drops the movies' dimmest grey and the small-panel movies' dotted
 backgrounds; 0% dithers everything, and around 50% leaves only the bright
 outlines. A number makes it a slider in Home Assistant (kept over a
@@ -196,6 +229,7 @@ number:
 - `tools/previews.py`: the builder's catalogue (`docs/clips.json`) and its
   previews, each clip played through `host/render`.
 - `docs/`: the builder (GitHub Pages).
-- `examples/`: whole configs for an OLED and a colour panel.
+- `examples/`: whole configs for an SSD1322, a 1-bit OLED and a colour
+  panel.
 
 The clip names in the builder are descriptive, not Pioneer's.

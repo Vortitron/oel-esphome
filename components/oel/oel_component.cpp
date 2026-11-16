@@ -15,6 +15,12 @@ void DisplayCanvas::fill(int x, int y, int w, int h, uint32_t rgb) {
     display_->filled_rectangle(x, y, w, h, rgb ? display::COLOR_ON : display::COLOR_OFF);
     return;
   }
+  if (grey_) {
+    /* A greyscale driver reads the white channel. */
+    uint8_t v = rgb & 255;
+    display_->filled_rectangle(x, y, w, h, Color(v, v, v, v));
+    return;
+  }
   display_->filled_rectangle(x, y, w, h, Color(rgb >> 16, rgb >> 8 & 255, rgb & 255));
 }
 
@@ -205,7 +211,8 @@ void OelComponent::loop() {
 
 void OelComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "OEL clips:");
-  ESP_LOGCONFIG(TAG, "  Screen: %dx%d%s", canvas_.width(), canvas_.height(), canvas_.mono() ? " (1-bit)" : "");
+  ESP_LOGCONFIG(TAG, "  Screen: %dx%d%s", canvas_.width(), canvas_.height(),
+                canvas_.mono() ? " (1-bit)" : canvas_.grey() ? " (greyscale)" : "");
   ESP_LOGCONFIG(TAG, "  Mode: %s; playing: %s; aspect: %s", screensaver_mode_ ? "screensaver" : "always",
                 current_.c_str(), aspect_name_.c_str());
   if (canvas_.mono())
