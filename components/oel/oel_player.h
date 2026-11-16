@@ -81,6 +81,15 @@ class Player {
      below which a shade is left dark instead of dithered: higher drops the
      faint speckle of the dim greys. Takes effect at the next redraw(). */
   void set_cutoff(int percent);
+  /* Frame-rate modulation on a 1-bit panel: 2-4 subframes, each a call to
+     frame() drawn whole with the dither shifted on, so a shade is lit for a
+     share of the time as well as of its dots; 1 is off. Wants a screen
+     written well over 100 times a second (SPI), or it flickers. */
+  void set_subframes(int n) {
+    subframes_ = n < 1 ? 1 : n > 4 ? 4 : n;
+    phase_ = 0;
+  }
+  int subframes() const { return subframes_; }
   /* Draw the whole frame again (after set_cutoff). */
   void redraw(Canvas &c) {
     if (cur_)
@@ -89,6 +98,7 @@ class Player {
 
  private:
   bool decode_(int index, uint8_t *out);
+  bool advance_(float dt, bool &moved);
   uint32_t colour_(int k) const;
   struct Span {
     int16_t a, b;
@@ -123,6 +133,7 @@ class Player {
   float wanted_ = 0;
   /* Each colour's share of lit dots, 0-16, after the cutoff. */
   int cutoff_ = 0;
+  int subframes_ = 1, phase_ = 0;
   uint8_t mono_[16] = {};
   /* Each colour as a grey, on a greyscale panel. */
   uint8_t grey_[16] = {};

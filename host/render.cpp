@@ -11,6 +11,8 @@
  *   OEL_LEVEL=sweep                          drive a meter from a slow sine
  *                                            wave, as a sensor would
  *   OEL_CUTOFF=0..100                        a 1-bit panel's cutoff, percent
+ *   OEL_FRM=2..4                             frame-rate modulation (1-bit), each
+ *                                            output frame a subframe
  */
 #include "../components/oel/oel_player.h"
 
@@ -85,6 +87,8 @@ int main(int argc, char **argv) {
       if (strcmp(a, names[i]) == 0)
         player.set_aspect((Aspect) i);
   }
+  if (const char *f = getenv("OEL_FRM"))
+    player.set_subframes(atoi(f));
   if (const char *c = getenv("OEL_CUTOFF"))
     player.set_cutoff(atoi(c));
   bool sweep = getenv("OEL_LEVEL") != nullptr;

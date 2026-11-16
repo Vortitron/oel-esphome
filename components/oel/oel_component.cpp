@@ -85,6 +85,16 @@ void OelComponent::set_cutoff(int percent) {
     display_->update();
 }
 
+void OelComponent::set_frame_rate_modulation(int subframes) {
+  subframes_ = subframes < 1 ? 1 : subframes > 4 ? 4 : subframes;
+  if (!player_ || !playing_)
+    return;
+  player_->set_subframes(subframes_);
+  player_->redraw(canvas_);
+  if (canvas_.take_dirty())
+    display_->update();
+}
+
 void OelComponent::feed_meter_() {
   if (!meter_source_ || !player_ || player_->header().kind != ::oelcore::METER)
     return;
@@ -100,6 +110,7 @@ bool OelComponent::play_(const Clip *clip) {
     player_.reset(new ::oelcore::Player());
   player_->set_aspect(aspect_);
   player_->set_cutoff(cutoff_);
+  player_->set_subframes(subframes_);
   if (!player_->begin(canvas_, clip->data, clip->size)) {
     ESP_LOGW(TAG, "Couldn't play %s (out of memory, or not a clip)", clip->name.c_str());
     player_.reset();
@@ -191,13 +202,26 @@ void OelComponent::loop() {
     return;
   uint32_t now = millis();
   uint32_t elapsed = now - last_ms_;
-  if (elapsed < 20)
+  /* About 50 a second; with frame-rate modulation, each subframe as soon
+     as the last is sent. */
+  const bool flicker = subframes_ > 1 && canvas_.mono();
+  if (elapsed < (flicker ? 2u : 20u))
     return;
   last_ms_ = now;
   feed_meter_();
   player_->frame(canvas_, elapsed / 1000.0f);
   if (canvas_.take_dirty())
     display_->update();
+  if (flicker) {
+    /* How fast the subframes go out: below about 100 a second it flickers. */
+    sent_++;
+    if (now - rate_ms_ >= 10000) {
+      ESP_LOGD(TAG, "%.0f subframes a second (%d-way frame-rate modulation)", sent_ * 1000.0f / (now - rate_ms_),
+               subframes_);
+      sent_ = 0;
+      rate_ms_ = now;
+    }
+  }
   if (current_ == "cycle" && clips_.size() > 1) {
     uint32_t pass = (uint32_t) (player_->pass_time() * 1000);
     uint32_t due = clip_time_ms_;
@@ -216,7 +240,8 @@ void OelComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "  Mode: %s; playing: %s; aspect: %s", screensaver_mode_ ? "screensaver" : "always",
                 current_.c_str(), aspect_name_.c_str());
   if (canvas_.mono())
-    ESP_LOGCONFIG(TAG, "  Cutoff: %d%%", cutoff_);
+    ESP_LOGCONFIG(TAG, "  Cutoff: %d%%; frame-rate modulation: %d subframe%s", cutoff_, subframes_,
+                  subframes_ == 1 ? " (off)" : "s");
   if (meter_source_)
     ESP_LOGCONFIG(TAG, "  Meters show %.6g to %.6g (bank %d)", meter_min_, meter_max_, meter_bank_ + 1);
   for (const auto &c : clips_) {

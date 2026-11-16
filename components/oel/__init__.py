@@ -13,6 +13,7 @@
       mode: always                   # or screensaver: oel.start / oel.stop
       aspect: auto                   # letterbox, crop (panned) or stretch
       cutoff: 30%                    # 1-bit panels: shades dimmer than this stay dark
+      frame_rate_modulation: false   # 1-bit panels: true (2 subframes) or 2-4; wants SPI
       meter:                         # drive the level meters (default: made-up music)
         sensor: house_power          # any sensor (a homeassistant one for an entity)
         min: 0                       # the value that reads as empty
@@ -65,6 +66,14 @@ CONF_SENSOR = "sensor"
 CONF_LAMBDA = "lambda"
 CONF_ASPECT = "aspect"
 CONF_CUTOFF = "cutoff"
+CONF_FRM = "frame_rate_modulation"
+
+
+def _subframes(value):
+    """false, true (2 subframes), or 2-4."""
+    if isinstance(value, bool) or (isinstance(value, str) and not value.strip().isdigit()):
+        return 2 if cv.boolean(value) else 1
+    return cv.int_range(min=2, max=4)(value)
 # auto: letterbox, but crop where a clip would shrink and the screen is tall
 # enough for it (a 256x64 movie on a 128x64 OLED). Order as oelcore::Aspect.
 ASPECTS = ["auto", "letterbox", "crop", "stretch"]
@@ -140,6 +149,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_MODE, default="always"): cv.one_of("always", "screensaver", lower=True),
             cv.Optional(CONF_ASPECT, default="auto"): cv.one_of(*ASPECTS, lower=True),
             cv.Optional(CONF_CUTOFF, default="30%"): cv.percentage,
+            cv.Optional(CONF_FRM, default=False): _subframes,
             cv.Optional(CONF_METER): cv.All(
                 cv.Schema(
                     {
@@ -224,6 +234,8 @@ async def to_code(config):
     cg.add(var.set_initial_clip(config[CONF_CLIP]))
     cg.add(var.set_aspect(config[CONF_ASPECT]))
     cg.add(var.set_cutoff(round(config[CONF_CUTOFF] * 100)))
+    if config[CONF_FRM] > 1:
+        cg.add(var.set_frame_rate_modulation(config[CONF_FRM]))
     cg.add(var.set_clip_time(config[CONF_CLIP_TIME]))
     if config[CONF_MODE] == "screensaver":
         cg.add(var.set_screensaver_mode(True))

@@ -226,6 +226,8 @@ static int prev_index(const uint8_t *buf, int bits, size_t i) {
    of several. Runs of one changed colour along a row go as one rectangle. */
 void Player::draw_(Canvas &c, bool all) {
   const int w = head_.width;
+  /* This subframe's turn of the dither (frame-rate modulation). */
+  const int shift = subframes_ > 1 ? phase_ * 16 / subframes_ : 0;
   for (int j = 0; j < vh_; j++) {
     const Span &r = rows_[j];
     const int py = vy_ + j;
@@ -243,7 +245,7 @@ void Player::draw_(Canvas &c, bool all) {
           int k = index_at_(col.a, r.a);
           changed = all || !have_prev_ || prev_index(prev_, head_.bits, (size_t) r.a * w + col.a) != k;
           if (mono_panel_) {
-            rgb = mono_[k] > BAYER[py & 3][px & 3] ? 0xFFFFFF : 0;
+            rgb = mono_[k] > ((BAYER[py & 3][px & 3] + shift) & 15) ? 0xFFFFFF : 0;
           } else {
             rgb = colour_(k);
           }
@@ -261,7 +263,7 @@ void Player::draw_(Canvas &c, bool all) {
             }
           changed = true;
           if (mono_panel_)
-            rgb = lv > BAYER[py & 3][px & 3] * n ? 0xFFFFFF : 0;
+            rgb = lv > ((BAYER[py & 3][px & 3] + shift) & 15) * n ? 0xFFFFFF : 0;
           else
             rgb = (uint32_t) (rr / n) << 16 | (gg / n) << 8 | (bb / n);
         }
@@ -318,13 +320,29 @@ void Player::next_meter_level_(float dt) {
 void Player::frame(Canvas &c, float dt) {
   if (!cur_)
     return;
+  /* Frame-rate modulation: every call is a subframe, drawn whole with the
+     dither shifted on, so a shade is the share of time its dots are lit. */
+  const bool flicker = mono_panel_ && subframes_ > 1;
+  if (flicker)
+    phase_ = (phase_ + 1) % subframes_;
+  bool moved = false;
+  const bool fresh = advance_(dt, moved);
+  if (flicker)
+    draw_(c, true);
+  else if (fresh || moved)
+    draw_(c, moved);
+}
+
+/* Move the clip on by dt: true if a new frame was decoded; moved if the pan
+   shifted. */
+bool Player::advance_(float dt, bool &moved) {
   const bool panning = pan_x_ > 0 || pan_y_ > 0;
   if (head_.kind == STILL && !panning)
-    return;
+    return false;
   const float ft = head_.frame_ms / 1000.0f;
   clock_ += dt;
   if (clock_ < ft)
-    return;
+    return false;
   float step = clock_ > 4 * ft ? ft : clock_ - fmodf(clock_, ft);
   clock_ -= step;
   played_ += step;
@@ -336,7 +354,6 @@ void Player::frame(Canvas &c, float dt) {
   } else if (head_.kind == CLIP) {
     next = (index_ + (int) lrintf(step / ft)) % head_.frames;
   }
-  bool moved = false;
   if (panning) {
     /* There and back across what is cropped, about ten seconds each way. */
     float u = 0.5f - 0.5f * cosf(fmodf(played_ / 20, 1) * 2 * 3.14159265f);
@@ -349,20 +366,18 @@ void Player::frame(Canvas &c, float dt) {
       moved = true;
     }
   }
-  if (next == index_ && !moved && have_prev_)
-    return;
-  if (next != index_ || !have_prev_) {
-    uint8_t *t = prev_;
-    prev_ = cur_;
-    cur_ = t;
-    have_prev_ = true;
-    if (!decode_(next, cur_)) {
-      memcpy(cur_, prev_, frame_bytes_);
-      return;
-    }
-    index_ = next;
+  if (next == index_ && have_prev_)
+    return false;
+  uint8_t *t = prev_;
+  prev_ = cur_;
+  cur_ = t;
+  have_prev_ = true;
+  if (!decode_(next, cur_)) {
+    memcpy(cur_, prev_, frame_bytes_);
+    return false;
   }
-  draw_(c, moved);
+  index_ = next;
+  return true;
 }
 
 }  // namespace oelcore
