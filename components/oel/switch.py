@@ -19,7 +19,12 @@ OelSwitch = oel_ns.class_("OelSwitch", switch.Switch, cg.Component)
 
 CONFIG_SCHEMA = (
     switch.switch_schema(
-        OelSwitch, icon="mdi:gradient-horizontal", entity_category=ENTITY_CATEGORY_CONFIG, block_inverted=True
+        OelSwitch,
+        icon="mdi:gradient-horizontal",
+        entity_category=ENTITY_CATEGORY_CONFIG,
+        block_inverted=True,
+        # Kept over a restart once changed; until then, as the YAML says.
+        default_restore_mode="RESTORE_DEFAULT_OFF",
     )
     .extend({cv.GenerateID(CONF_OEL_ID): cv.use_id(OelComponent)})
     .extend(cv.COMPONENT_SCHEMA)
