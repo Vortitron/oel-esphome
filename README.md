@@ -255,6 +255,9 @@ switch:
   `OEL_CUTOFF`, `OEL_FRM` and `OEL_LEVEL=sweep` in the environment).
 - `tools/previews.py`: the builder's catalogue (`docs/clips.json`) and its
   previews, each clip played through `host/render`.
+- `tools/lcd_preview.py`: an experiment, not used by the component: how a
+  clip could look on a 16x2 character LCD (eight glyphs a frame, `--grey`
+  for frame-rate modulation), simulated as a GIF.
 - `docs/`: the builder (GitHub Pages).
 - `examples/`: whole configs for an SSD1322, a 1-bit OLED and a colour
   panel.
